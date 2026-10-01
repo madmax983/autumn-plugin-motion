@@ -139,12 +139,23 @@ Autumn apps:
 | `data-motion-once` | `false` | _(once)_ | Set to `false` to re-animate every time the element enters the viewport. |
 | `data-motion-stagger` | milliseconds, e.g. `60` | — | On a container: cascade the preset over its direct children. |
 | `data-motion-scroll` | _(bare attribute)_ | — | Drive the keyframes by scroll progress instead of animating on entry. |
+| `data-motion-ease` | `linear`, `ease-in`, `ease-out`, `ease-in-out`, `circ-in`, `circ-out`, `circ-in-out`, `back-in`, `back-out`, `back-in-out`, `anticipate`, `cubic-bezier(0.16,1,0.3,1)`, `spring(300,20,1)` | `cubic-bezier(0.16,1,0.3,1)` | Easing curve. `spring(stiffness,damping,mass)` uses spring physics. |
 
 The Rust [`Motion`](https://docs.rs/autumn-plugin-motion) builder mirrors
 all of these: `Motion::fade_up()`, `.fade()`, `.scale()`,
 `.slide_left()`, `.slide_right()`, plus `.delay(ms)`,
-`.duration(secs)`, `.once(bool)`, `.stagger(ms)`, `.scroll()`, and
-`.wrap(markup)`.
+`.duration(secs)`, `.ease(Ease::Out)`, `.once(bool)`, `.stagger(ms)`,
+`.scroll()`, and `.wrap(markup)`. The [`Ease`] enum covers named easings,
+`Ease::CubicBezier(x1, y1, x2, y2)`, and
+`Ease::Spring { stiffness, damping, mass }`:
+
+```rust
+use autumn_plugin_motion::{Ease, Motion};
+
+let bouncy = Motion::scale()
+    .ease(Ease::Spring { stiffness: 300.0, damping: 20.0, mass: 1.0 })
+    .wrap(markup);
+```
 
 Details:
 

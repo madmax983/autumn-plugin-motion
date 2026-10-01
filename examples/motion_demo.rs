@@ -24,7 +24,7 @@
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use autumn_plugin_motion::{Motion, MotionPlugin, motion_script};
+use autumn_plugin_motion::{Ease, Motion, MotionPlugin, motion_script};
 use autumn_web::assets::asset_url;
 use autumn_web::{Markup, html};
 
@@ -76,9 +76,12 @@ fn layout(content: &Markup) -> Markup {
 #[autumn_web::get("/")]
 async fn index() -> Markup {
     layout(&html! {
-        // 1. Entrance: the hero cascades in on load, 130ms apart.
+        // 1. Entrance: the hero cascades in on load, 130ms apart, on a
+        //    spring — Phase 1 typed easing, straight from Rust.
         section class="hero" {
-            (Motion::fade_up().stagger(130).wrap(html! {
+            (Motion::fade_up().stagger(130).ease(Ease::Spring {
+                stiffness: 260.0, damping: 22.0, mass: 1.0,
+            }).wrap(html! {
                 div class="kicker" { "autumn-plugin-motion" }
                 h1 { "Server-rendered HTML," br; "now with choreography." }
                 p {
@@ -102,7 +105,7 @@ async fn index() -> Markup {
                 h2 { "Scroll-aware" }
                 p { "Elements animate when they scroll into view — below the fold waits its turn." }
             }
-            div class="card" data-motion="scale" data-motion-delay="80" {
+            div class="card" data-motion="scale" data-motion-delay="80" data-motion-ease="back-out" {
                 h2 { "Kind by default" }
                 p { "prefers-reduced-motion disables everything; content stays fully visible." }
             }

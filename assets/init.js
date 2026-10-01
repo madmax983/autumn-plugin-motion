@@ -21,8 +21,24 @@
     };
 
     var DEFAULT_DURATION = 0.6;
-    // Snappy expo-out-ish easing shared by every preset.
-    var EASING = [0.16, 1, 0.3, 1];
+    // Snappy expo-out-ish easing shared by every preset unless the element
+    // sets data-motion-ease.
+    var DEFAULT_EASING = [0.16, 1, 0.3, 1];
+
+    // data-motion-ease kebab names -> Motion easing names.
+    var NAMED_EASINGS = {
+        linear: "linear",
+        "ease-in": "easeIn",
+        "ease-out": "easeOut",
+        "ease-in-out": "easeInOut",
+        "circ-in": "circIn",
+        "circ-out": "circOut",
+        "circ-in-out": "circInOut",
+        "back-in": "backIn",
+        "back-out": "backOut",
+        "back-in-out": "backInOut",
+        anticipate: "anticipate",
+    };
 
     function motion() {
         return window.Motion || null;
@@ -59,6 +75,54 @@
         }
     }
 
+    // Parse data-motion-ease into a Motion transition fragment.
+    // Accepts kebab-case names ("ease-out"), "cubic-bezier(a,b,c,d)", and
+    // "spring(stiffness,damping,mass)". Unknown values fall back to the
+    // default easing.
+    function readEase(el) {
+        var raw = el.getAttribute("data-motion-ease");
+        if (!raw) {
+            return { ease: DEFAULT_EASING };
+        }
+        var m = raw.match(/^cubic-bezier\(([^)]+)\)$/);
+        if (m) {
+            var curve = m[1].split(",").map(Number);
+            if (
+                curve.length === 4 &&
+                curve.every(function (n) {
+                    return isFinite(n);
+                })
+            ) {
+                return { ease: curve };
+            }
+            return { ease: DEFAULT_EASING };
+        }
+        m = raw.match(/^spring\(([^)]+)\)$/);
+        if (m) {
+            var s = m[1].split(",").map(Number);
+            if (
+                s.length === 3 &&
+                s.every(function (n) {
+                    return isFinite(n);
+                })
+            ) {
+                return {
+                    type: "spring",
+                    stiffness: s[0],
+                    damping: s[1],
+                    mass: s[2],
+                };
+            }
+            return { ease: DEFAULT_EASING };
+        }
+        if (
+            Object.prototype.hasOwnProperty.call(NAMED_EASINGS, raw)
+        ) {
+            return { ease: NAMED_EASINGS[raw] };
+        }
+        return { ease: DEFAULT_EASING };
+    }
+
     function readOpts(el) {
         var delayMs = parseInt(el.getAttribute("data-motion-delay") || "0", 10);
         var duration = parseFloat(el.getAttribute("data-motion-duration") || "");
@@ -74,16 +138,21 @@
         var kind = el.getAttribute("data-motion") || "fade-up";
         var keyframes = PRESETS[kind] || PRESETS["fade-up"];
         var opts = readOpts(el);
-        var timing = {
-            duration: opts.duration,
-            delay: opts.delay,
-            easing: EASING,
-        };
+        // NOTE: Motion's transition option is `ease`, not `easing` — the
+        // unknown `easing` key was silently ignored before Phase 1.
+        var timing = Object.assign(
+            {
+                duration: opts.duration,
+                delay: opts.delay,
+            },
+            readEase(el),
+        );
 
         if (opts.scroll) {
             // Scroll-linked: drive the keyframes by scroll progress as the
-            // element travels through the viewport.
-            M.scroll(M.animate(el, keyframes, { easing: "linear" }), {
+            // element travels through the viewport. Always linear — the
+            // scroll position is the clock.
+            M.scroll(M.animate(el, keyframes, { ease: "linear" }), {
                 target: el,
                 offset: ["start end", "end start"],
             });

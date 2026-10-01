@@ -1,1 +1,22 @@
-{"files":{"init.js":{"bytes":6043,"integrity":"sha384-ZOHXljZ1V00qv8QFZuhWgs3fwrS0U9QVTkldYpvmiH3RiJKyWAUTh9nlc8l3pd1u","source":"plugin-authored (this repo)"},"motion.min.js":{"bytes":139606,"format":"UMD (sets window.Motion)","integrity":"sha384-hgVFh5YKDMdpcWEjpRqk2kPXOKBH7I9NBCKe3uR6dHKgy/BWPe8kyL01kiYuRn1u","source":"https://cdn.jsdelivr.net/npm/motion@12.43.0/dist/motion.js","upstream_path":"/dist/motion.js"}},"homepage":"https://motion.dev","library":"motion","license":"MIT","notes":"motion.min.js is the upstream minified UMD build, renamed from dist/motion.js. init.js is the plugin's declarative data-motion scanner; update its integrity hash here and in src/assets.rs if it changes.","pinned":"latest 12.x as of 2026-10-01","version":"12.43.0"}
+{
+  "files": {
+    "init.js": {
+      "bytes": 8332,
+      "integrity": "sha384-JfQI6RgP+qCNEloFi32J73YV28r95lhaVgS3sBfBLFSiDbZDdibzrXPajala7wvK",
+      "source": "plugin-authored (this repo)"
+    },
+    "motion.min.js": {
+      "bytes": 139606,
+      "format": "UMD (sets window.Motion)",
+      "integrity": "sha384-hgVFh5YKDMdpcWEjpRqk2kPXOKBH7I9NBCKe3uR6dHKgy/BWPe8kyL01kiYuRn1u",
+      "source": "https://cdn.jsdelivr.net/npm/motion@12.43.0/dist/motion.js",
+      "upstream_path": "/dist/motion.js"
+    }
+  },
+  "homepage": "https://motion.dev",
+  "library": "motion",
+  "license": "MIT",
+  "notes": "motion.min.js is the upstream minified UMD build, renamed from dist/motion.js. init.js is the plugin's declarative data-motion scanner; update its integrity hash here and in src/assets.rs if it changes.",
+  "pinned": "latest 12.x as of 2026-10-01",
+  "version": "12.43.0"
+}

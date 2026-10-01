@@ -20,11 +20,93 @@
 //!   its direct children, `60` ms apart.
 //! - `data-motion-scroll` — bare attribute: drive the keyframes by scroll
 //!   progress instead of animating on entry.
+//! - `data-motion-ease="ease-out|cubic-bezier(0.16,1,0.3,1)|spring(300,20,1)"`
+//!   — easing curve (default: a snappy `cubic-bezier(0.16,1,0.3,1)`).
 
 use autumn_web::{Markup, html};
 
 /// Default animation duration in seconds, used when no duration is set.
 const DEFAULT_DURATION_SECS: f32 = 0.6;
+
+/// An easing curve for a [`Motion`] animation.
+///
+/// Serializes to the `data-motion-ease` attribute, which `assets/init.js`
+/// maps onto Motion's easing definitions. When no ease is set, `init.js`
+/// applies a snappy expo-out curve (`cubic-bezier(0.16, 1, 0.3, 1)`).
+///
+/// ```rust
+/// use autumn_plugin_motion::{Ease, Motion};
+/// use autumn_web::{Markup, html};
+///
+/// let card: Markup = Motion::scale()
+///     .ease(Ease::Spring { stiffness: 300.0, damping: 20.0, mass: 1.0 })
+///     .wrap(html! { p { "Boing" } });
+/// assert!(card.into_string().contains(r#"data-motion-ease="spring(300,20,1)""#));
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Ease {
+    /// Constant speed.
+    Linear,
+    /// Start slow, end fast (`cubic-bezier(0.42, 0, 1, 1)`).
+    In,
+    /// Start fast, end slow (`cubic-bezier(0, 0, 0.58, 1)`).
+    Out,
+    /// Slow at both ends (`cubic-bezier(0.42, 0, 0.58, 1)`).
+    InOut,
+    /// Circular ease-in.
+    CircIn,
+    /// Circular ease-out.
+    CircOut,
+    /// Circular ease-in-out.
+    CircInOut,
+    /// Overshoots, then settles (ease-in flavor).
+    BackIn,
+    /// Overshoots, then settles (ease-out flavor).
+    BackOut,
+    /// Overshoots, then settles (in-out flavor).
+    BackInOut,
+    /// Starts by moving slightly backwards, then accelerates.
+    Anticipate,
+    /// A custom cubic-bezier curve: `(x1, y1, x2, y2)`.
+    CubicBezier(f32, f32, f32, f32),
+    /// Spring physics. `stiffness` is the spring strength, `damping` the
+    /// friction, `mass` the weight being moved.
+    Spring {
+        /// Spring strength (higher = snappier).
+        stiffness: f32,
+        /// Friction (higher = less oscillation).
+        damping: f32,
+        /// Weight being moved.
+        mass: f32,
+    },
+}
+
+impl Ease {
+    /// The `data-motion-ease` attribute value for this ease.
+    fn attr_value(self) -> String {
+        match self {
+            Self::Linear => "linear".to_owned(),
+            Self::In => "ease-in".to_owned(),
+            Self::Out => "ease-out".to_owned(),
+            Self::InOut => "ease-in-out".to_owned(),
+            Self::CircIn => "circ-in".to_owned(),
+            Self::CircOut => "circ-out".to_owned(),
+            Self::CircInOut => "circ-in-out".to_owned(),
+            Self::BackIn => "back-in".to_owned(),
+            Self::BackOut => "back-out".to_owned(),
+            Self::BackInOut => "back-in-out".to_owned(),
+            Self::Anticipate => "anticipate".to_owned(),
+            Self::CubicBezier(x1, y1, x2, y2) => {
+                format!("cubic-bezier({x1},{y1},{x2},{y2})")
+            }
+            Self::Spring {
+                stiffness,
+                damping,
+                mass,
+            } => format!("spring({stiffness},{damping},{mass})"),
+        }
+    }
+}
 
 /// An animation preset, mirroring the keyframes in `assets/init.js`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,6 +157,7 @@ pub struct Motion {
     preset: Preset,
     delay_ms: u32,
     duration_secs: Option<f32>,
+    ease: Option<Ease>,
     once: bool,
     stagger_ms: Option<u32>,
     scroll: bool,
@@ -117,6 +200,7 @@ impl Motion {
             preset,
             delay_ms: 0,
             duration_secs: None,
+            ease: None,
             once: true,
             stagger_ms: None,
             scroll: false,
@@ -134,6 +218,24 @@ impl Motion {
     #[must_use]
     pub const fn duration(mut self, secs: f32) -> Self {
         self.duration_secs = Some(secs);
+        self
+    }
+
+    /// Easing curve (default: a snappy `cubic-bezier(0.16,1,0.3,1)` applied
+    /// by `init.js` when the attribute is absent).
+    ///
+    /// ```rust
+    /// use autumn_plugin_motion::{Ease, Motion};
+    /// use autumn_web::{Markup, html};
+    ///
+    /// let html: Markup = Motion::fade_up()
+    ///     .ease(Ease::Out)
+    ///     .wrap(html! { p { "Hi" } });
+    /// assert!(html.into_string().contains(r#"data-motion-ease="ease-out""#));
+    /// ```
+    #[must_use]
+    pub const fn ease(mut self, ease: Ease) -> Self {
+        self.ease = Some(ease);
         self
     }
 
@@ -189,10 +291,12 @@ impl Motion {
         let once = (!self.once).then_some("false");
         let stagger = self.stagger_ms.map(|ms| ms.to_string());
         let scroll = self.scroll;
+        let ease = self.ease.map(Ease::attr_value);
         html! {
             div data-motion=(preset)
                 data-motion-delay=[delay.as_deref()]
                 data-motion-duration=[duration.as_deref()]
+                data-motion-ease=[ease.as_deref()]
                 data-motion-once=[once]
                 data-motion-stagger=[stagger.as_deref()]
                 data-motion-scroll[scroll]
@@ -236,6 +340,7 @@ mod tests {
         for attr in [
             "data-motion-delay",
             "data-motion-duration",
+            "data-motion-ease",
             "data-motion-once",
             "data-motion-stagger",
             "data-motion-scroll",
@@ -266,6 +371,34 @@ mod tests {
             !html.contains("data-motion-duration"),
             "explicit default duration is omitted: {html}"
         );
+    }
+
+    #[test]
+    fn ease_renders_its_attribute() {
+        let cases = [
+            (Ease::Linear, r#"data-motion-ease="linear""#),
+            (Ease::Out, r#"data-motion-ease="ease-out""#),
+            (Ease::InOut, r#"data-motion-ease="ease-in-out""#),
+            (Ease::CircOut, r#"data-motion-ease="circ-out""#),
+            (Ease::BackIn, r#"data-motion-ease="back-in""#),
+            (Ease::Anticipate, r#"data-motion-ease="anticipate""#),
+            (
+                Ease::CubicBezier(0.16, 1.0, 0.3, 1.0),
+                r#"data-motion-ease="cubic-bezier(0.16,1,0.3,1)""#,
+            ),
+            (
+                Ease::Spring {
+                    stiffness: 300.0,
+                    damping: 20.0,
+                    mass: 1.0,
+                },
+                r#"data-motion-ease="spring(300,20,1)""#,
+            ),
+        ];
+        for (ease, attr) in cases {
+            let html = render(Motion::fade_up().ease(ease));
+            assert!(html.contains(attr), "ease renders {attr}: {html}");
+        }
     }
 
     #[test]
