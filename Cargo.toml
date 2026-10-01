@@ -1,0 +1,46 @@
+[package]
+name = "autumn-plugin-motion"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Autumn plugin: Motion (motion.dev) animations with Maud + htmx ergonomics."
+license = "Apache-2.0"
+repository = "https://github.com/madmax983/autumn-plugin-motion"
+keywords = ["autumn", "motion", "animation", "htmx", "plugin"]
+categories = ["web-programming"]
+exclude = [".github/", "docs/", "CLAUDE.md", "clippy.toml"]
+
+[features]
+default = []
+
+[dependencies]
+# No default features: the host app selects the Autumn features.
+# The `maud` feature is on because the plugin ships Maud helpers.
+autumn-web = { version = ">=0.7, <0.8", default-features = false, features = ["maud", "embed-assets"] }
+# Direct dependency: the `html!` macro expands to `maud::` paths, so the
+# crate must be resolvable by name in this crate too.
+maud = "0.27"
+
+[dev-dependencies]
+base64 = "0.22"
+sha2 = "0.10"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tower = { version = "0.5", features = ["util"] }
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+module_name_repetitions = "allow"
+redundant_pub_crate = "allow"
