@@ -133,21 +133,25 @@ Autumn apps:
 
 | Attribute | Values | Default | Notes |
 |---|---|---|---|
-| `data-motion` | `fade-up`, `fade`, `scale`, `slide-left`, `slide-right` | `fade-up` | The preset. Unknown values fall back to `fade-up`. |
+| `data-motion` | `fade-up`, `fade-down`, `fade-left`, `fade-right`, `fade`, `scale`, `zoom-in`, `zoom-out`, `slide-left`, `slide-right`, `slide-up`, `slide-down`, `rotate-in`, `blur-in` | `fade-up` | The preset. Unknown values fall back to `fade-up`. |
 | `data-motion-delay` | milliseconds, e.g. `150` | `0` | Start delay. |
 | `data-motion-duration` | seconds, e.g. `1.2` | `0.6` | Animation duration. |
 | `data-motion-once` | `false` | _(once)_ | Set to `false` to re-animate every time the element enters the viewport. |
 | `data-motion-stagger` | milliseconds, e.g. `60` | — | On a container: cascade the preset over its direct children. |
 | `data-motion-scroll` | _(bare attribute)_ | — | Drive the keyframes by scroll progress instead of animating on entry. |
 | `data-motion-ease` | `linear`, `ease-in`, `ease-out`, `ease-in-out`, `circ-in`, `circ-out`, `circ-in-out`, `back-in`, `back-out`, `back-in-out`, `anticipate`, `cubic-bezier(0.16,1,0.3,1)`, `spring(300,20,1)` | `cubic-bezier(0.16,1,0.3,1)` | Easing curve. `spring(stiffness,damping,mass)` uses spring physics. |
+| `data-motion-repeat` | times, e.g. `2` | — | Repeat the animation `n` times after the first play. |
+| `data-motion-repeat-type` | `loop`, `reverse`, `mirror` | `loop` | How each repeat cycle restarts. |
 
 The Rust [`Motion`](https://docs.rs/autumn-plugin-motion) builder mirrors
-all of these: `Motion::fade_up()`, `.fade()`, `.scale()`,
-`.slide_left()`, `.slide_right()`, plus `.delay(ms)`,
-`.duration(secs)`, `.ease(Ease::Out)`, `.once(bool)`, `.stagger(ms)`,
-`.scroll()`, and `.wrap(markup)`. The [`Ease`] enum covers named easings,
-`Ease::CubicBezier(x1, y1, x2, y2)`, and
-`Ease::Spring { stiffness, damping, mass }`:
+all of these: `Motion::fade_up()`, `fade_down()`, `fade_left()`,
+`fade_right()`, `fade()`, `scale()`, `zoom_in()`, `zoom_out()`,
+`slide_left()`, `slide_right()`, `slide_up()`, `slide_down()`,
+`rotate_in()`, `blur_in()`, plus `.delay(ms)`, `.duration(secs)`,
+`.ease(Ease::Out)`, `.repeat(n)`, `.repeat_type(RepeatType::Mirror)`,
+`.once(bool)`, `.stagger(ms)`, `.scroll()`, and `.wrap(markup)`. The
+[`Ease`] enum covers named easings, `Ease::CubicBezier(x1, y1, x2, y2)`,
+and `Ease::Spring { stiffness, damping, mass }`:
 
 ```rust
 use autumn_plugin_motion::{Ease, Motion};

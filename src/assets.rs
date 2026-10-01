@@ -29,7 +29,7 @@ pub const MOTION_JS_INTEGRITY: &str =
 /// If `init.js` changes, update this constant (and `assets/manifest.json`);
 /// [`integrity_hashes_match_embedded_bytes`] fails otherwise.
 pub const INIT_JS_INTEGRITY: &str =
-    "sha384-JfQI6RgP+qCNEloFi32J73YV28r95lhaVgS3sBfBLFSiDbZDdibzrXPajala7wvK";
+    "sha384-WU3HC/XqwofYGPNqlOi/usS9XZ6fAJBExLtSgkKS3Fapc6R/rRXaEZUYI3hAS4zu";
 
 /// Raw bytes of a vendored asset, or `None` when the name is unknown.
 pub(crate) fn file(name: &str) -> Option<&'static [u8]> {

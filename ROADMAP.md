@@ -60,7 +60,7 @@ default easing.
 - Sensible per-preset defaults (e.g. `fade_up` defaults to an
   expo-ish `CubicBezier(0.16, 1, 0.3, 1)`).
 
-### Phase 2 — More presets
+### Phase 2 — More presets ✅ done 2026-10-01
 Directions and combos Motion keyframes express trivially:
 
 - `fade_down`, `fade_left`, `fade_right` (complete the fade family)

@@ -10,8 +10,8 @@
 //! The builder emits these attributes; you can also write them by hand on
 //! your own elements:
 //!
-//! - `data-motion="fade-up|fade|scale|slide-left|slide-right"` — the preset
-//!   (default `fade-up`).
+//! - `data-motion="fade-up|fade-down|fade-left|fade-right|fade|scale|zoom-in|zoom-out|slide-left|slide-right|slide-up|slide-down|rotate-in|blur-in"`
+//!   — the preset (default `fade-up`).
 //! - `data-motion-delay="150"` — start delay in milliseconds (default `0`).
 //! - `data-motion-duration="0.6"` — duration in seconds (default `0.6`).
 //! - `data-motion-once="false"` — re-animate every time the element enters
@@ -22,6 +22,10 @@
 //!   progress instead of animating on entry.
 //! - `data-motion-ease="ease-out|cubic-bezier(0.16,1,0.3,1)|spring(300,20,1)"`
 //!   — easing curve (default: a snappy `cubic-bezier(0.16,1,0.3,1)`).
+//! - `data-motion-repeat="2"` — repeat the animation `n` times after the
+//!   first play.
+//! - `data-motion-repeat-type="loop|reverse|mirror"` — how each repeat
+//!   cycle restarts (default `loop`).
 
 use autumn_web::{Markup, html};
 
@@ -108,19 +112,62 @@ impl Ease {
     }
 }
 
+/// How a repeated [`Motion`] animation restarts each cycle.
+///
+/// Serializes to the `data-motion-repeat-type` attribute; mirrors Motion's
+/// `repeatType` transition option.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RepeatType {
+    /// Jump back to the start each cycle (default).
+    Loop,
+    /// Play backwards on alternate cycles.
+    Reverse,
+    /// Alternate direction each cycle (ping-pong).
+    Mirror,
+}
+
+impl RepeatType {
+    /// The `data-motion-repeat-type` attribute value.
+    const fn attr(self) -> &'static str {
+        match self {
+            Self::Loop => "loop",
+            Self::Reverse => "reverse",
+            Self::Mirror => "mirror",
+        }
+    }
+}
+
 /// An animation preset, mirroring the keyframes in `assets/init.js`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Preset {
     /// Fade in while rising 24px.
     FadeUp,
+    /// Fade in while sinking 24px.
+    FadeDown,
+    /// Fade in while drifting 24px left.
+    FadeLeft,
+    /// Fade in while drifting 24px right.
+    FadeRight,
     /// Fade in place.
     Fade,
     /// Fade in while scaling from 0.94.
     Scale,
+    /// Fade in while zooming from 0.8 scale.
+    ZoomIn,
+    /// Fade in while settling from 1.15 scale.
+    ZoomOut,
     /// Fade in while sliding 32px from the right.
     SlideLeft,
     /// Fade in while sliding 32px from the left.
     SlideRight,
+    /// Fade in while rising 32px from below.
+    SlideUp,
+    /// Fade in while sinking 32px from above.
+    SlideDown,
+    /// Fade in while straightening from -8 degrees.
+    RotateIn,
+    /// Fade in while de-blurring from 8px.
+    BlurIn,
 }
 
 impl Preset {
@@ -128,10 +175,19 @@ impl Preset {
     const fn attr(self) -> &'static str {
         match self {
             Self::FadeUp => "fade-up",
+            Self::FadeDown => "fade-down",
+            Self::FadeLeft => "fade-left",
+            Self::FadeRight => "fade-right",
             Self::Fade => "fade",
             Self::Scale => "scale",
+            Self::ZoomIn => "zoom-in",
+            Self::ZoomOut => "zoom-out",
             Self::SlideLeft => "slide-left",
             Self::SlideRight => "slide-right",
+            Self::SlideUp => "slide-up",
+            Self::SlideDown => "slide-down",
+            Self::RotateIn => "rotate-in",
+            Self::BlurIn => "blur-in",
         }
     }
 }
@@ -139,7 +195,7 @@ impl Preset {
 /// A declarative animation: preset plus modifiers.
 ///
 /// Build with a preset constructor ([`Motion::fade_up`], [`Motion::fade`],
-/// [`Motion::scale`], [`Motion::slide_left`], [`Motion::slide_right`]),
+/// [`Motion::scale`], [`Motion::slide_left`], … — see [`Preset`]),
 /// tune with the modifier methods, then either [`Motion::wrap`] the markup
 /// or write the attributes by hand (see the module docs).
 ///
@@ -158,6 +214,8 @@ pub struct Motion {
     delay_ms: u32,
     duration_secs: Option<f32>,
     ease: Option<Ease>,
+    repeat: Option<u32>,
+    repeat_type: Option<RepeatType>,
     once: bool,
     stagger_ms: Option<u32>,
     scroll: bool,
@@ -168,6 +226,24 @@ impl Motion {
     #[must_use]
     pub const fn fade_up() -> Self {
         Self::preset(Preset::FadeUp)
+    }
+
+    /// Fade in while sinking 24px.
+    #[must_use]
+    pub const fn fade_down() -> Self {
+        Self::preset(Preset::FadeDown)
+    }
+
+    /// Fade in while drifting 24px left.
+    #[must_use]
+    pub const fn fade_left() -> Self {
+        Self::preset(Preset::FadeLeft)
+    }
+
+    /// Fade in while drifting 24px right.
+    #[must_use]
+    pub const fn fade_right() -> Self {
+        Self::preset(Preset::FadeRight)
     }
 
     /// Fade in place.
@@ -182,6 +258,18 @@ impl Motion {
         Self::preset(Preset::Scale)
     }
 
+    /// Fade in while zooming from 0.8 scale.
+    #[must_use]
+    pub const fn zoom_in() -> Self {
+        Self::preset(Preset::ZoomIn)
+    }
+
+    /// Fade in while settling from 1.15 scale.
+    #[must_use]
+    pub const fn zoom_out() -> Self {
+        Self::preset(Preset::ZoomOut)
+    }
+
     /// Fade in while sliding 32px from the right.
     #[must_use]
     pub const fn slide_left() -> Self {
@@ -194,6 +282,30 @@ impl Motion {
         Self::preset(Preset::SlideRight)
     }
 
+    /// Fade in while rising 32px from below.
+    #[must_use]
+    pub const fn slide_up() -> Self {
+        Self::preset(Preset::SlideUp)
+    }
+
+    /// Fade in while sinking 32px from above.
+    #[must_use]
+    pub const fn slide_down() -> Self {
+        Self::preset(Preset::SlideDown)
+    }
+
+    /// Fade in while straightening from -8 degrees.
+    #[must_use]
+    pub const fn rotate_in() -> Self {
+        Self::preset(Preset::RotateIn)
+    }
+
+    /// Fade in while de-blurring from 8px.
+    #[must_use]
+    pub const fn blur_in() -> Self {
+        Self::preset(Preset::BlurIn)
+    }
+
     /// Builds a [`Motion`] from a raw preset.
     const fn preset(preset: Preset) -> Self {
         Self {
@@ -201,6 +313,8 @@ impl Motion {
             delay_ms: 0,
             duration_secs: None,
             ease: None,
+            repeat: None,
+            repeat_type: None,
             once: true,
             stagger_ms: None,
             scroll: false,
@@ -236,6 +350,31 @@ impl Motion {
     #[must_use]
     pub const fn ease(mut self, ease: Ease) -> Self {
         self.ease = Some(ease);
+        self
+    }
+
+    /// Repeat the animation `n` times after the first play (so `repeat(2)`
+    /// plays three times total). Useful for pulsing badges and attention
+    /// loops.
+    ///
+    /// ```rust
+    /// use autumn_plugin_motion::Motion;
+    /// use autumn_web::{Markup, html};
+    ///
+    /// let html: Markup = Motion::scale().repeat(2).wrap(html! { p { "Hi" } });
+    /// assert!(html.into_string().contains(r#"data-motion-repeat="2""#));
+    /// ```
+    #[must_use]
+    pub const fn repeat(mut self, n: u32) -> Self {
+        self.repeat = Some(n);
+        self
+    }
+
+    /// How each repeat cycle restarts: [`RepeatType::Loop`] (default),
+    /// [`RepeatType::Reverse`], or [`RepeatType::Mirror`] (ping-pong).
+    #[must_use]
+    pub const fn repeat_type(mut self, repeat_type: RepeatType) -> Self {
+        self.repeat_type = Some(repeat_type);
         self
     }
 
@@ -292,11 +431,15 @@ impl Motion {
         let stagger = self.stagger_ms.map(|ms| ms.to_string());
         let scroll = self.scroll;
         let ease = self.ease.map(Ease::attr_value);
+        let repeat = self.repeat.map(|n| n.to_string());
+        let repeat_type = self.repeat_type.map(RepeatType::attr);
         html! {
             div data-motion=(preset)
                 data-motion-delay=[delay.as_deref()]
                 data-motion-duration=[duration.as_deref()]
                 data-motion-ease=[ease.as_deref()]
+                data-motion-repeat=[repeat.as_deref()]
+                data-motion-repeat-type=[repeat_type]
                 data-motion-once=[once]
                 data-motion-stagger=[stagger.as_deref()]
                 data-motion-scroll[scroll]
@@ -320,10 +463,19 @@ mod tests {
     fn all_presets_render_their_attribute() {
         let cases = [
             (Motion::fade_up(), "fade-up"),
+            (Motion::fade_down(), "fade-down"),
+            (Motion::fade_left(), "fade-left"),
+            (Motion::fade_right(), "fade-right"),
             (Motion::fade(), "fade"),
             (Motion::scale(), "scale"),
+            (Motion::zoom_in(), "zoom-in"),
+            (Motion::zoom_out(), "zoom-out"),
             (Motion::slide_left(), "slide-left"),
             (Motion::slide_right(), "slide-right"),
+            (Motion::slide_up(), "slide-up"),
+            (Motion::slide_down(), "slide-down"),
+            (Motion::rotate_in(), "rotate-in"),
+            (Motion::blur_in(), "blur-in"),
         ];
         for (motion, attr) in cases {
             let html = render(motion);
@@ -341,6 +493,7 @@ mod tests {
             "data-motion-delay",
             "data-motion-duration",
             "data-motion-ease",
+            "data-motion-repeat",
             "data-motion-once",
             "data-motion-stagger",
             "data-motion-scroll",
@@ -399,6 +552,16 @@ mod tests {
             let html = render(Motion::fade_up().ease(ease));
             assert!(html.contains(attr), "ease renders {attr}: {html}");
         }
+    }
+
+    #[test]
+    fn repeat_renders_its_attributes() {
+        let html = render(Motion::scale().repeat(2).repeat_type(RepeatType::Mirror));
+        assert!(html.contains(r#"data-motion-repeat="2""#), "{html}");
+        assert!(
+            html.contains(r#"data-motion-repeat-type="mirror""#),
+            "{html}"
+        );
     }
 
     #[test]

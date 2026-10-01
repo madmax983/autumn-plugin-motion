@@ -105,7 +105,7 @@ async fn index() -> Markup {
                 h2 { "Scroll-aware" }
                 p { "Elements animate when they scroll into view — below the fold waits its turn." }
             }
-            div class="card" data-motion="scale" data-motion-delay="80" data-motion-ease="back-out" {
+            div class="card" data-motion="zoom-in" data-motion-delay="80" data-motion-ease="back-out" data-motion-repeat="2" data-motion-repeat-type="mirror" {
                 h2 { "Kind by default" }
                 p { "prefers-reduced-motion disables everything; content stays fully visible." }
             }
@@ -142,7 +142,7 @@ async fn more() -> Markup {
         "No JavaScript was written for this cascade.",
         "The re-scan hook did all of it.",
     ];
-    Motion::fade_up().stagger(90).wrap(html! {
+    Motion::slide_up().stagger(90).wrap(html! {
         @for (i, blurb) in blurbs.iter().enumerate() {
             div class="item" {
                 b { "Batch " (n) " · item " (i + 1) }

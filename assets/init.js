@@ -14,10 +14,19 @@
     // builder presets in `src/motion.rs`.
     var PRESETS = {
         "fade-up": { opacity: [0, 1], y: [24, 0] },
+        "fade-down": { opacity: [0, 1], y: [-24, 0] },
+        "fade-left": { opacity: [0, 1], x: [24, 0] },
+        "fade-right": { opacity: [0, 1], x: [-24, 0] },
         fade: { opacity: [0, 1] },
         scale: { opacity: [0, 1], scale: [0.94, 1] },
+        "zoom-in": { opacity: [0, 1], scale: [0.8, 1] },
+        "zoom-out": { opacity: [0, 1], scale: [1.15, 1] },
         "slide-left": { opacity: [0, 1], x: [32, 0] },
         "slide-right": { opacity: [0, 1], x: [-32, 0] },
+        "slide-up": { opacity: [0, 1], y: [32, 0] },
+        "slide-down": { opacity: [0, 1], y: [-32, 0] },
+        "rotate-in": { opacity: [0, 1], rotate: [-8, 0] },
+        "blur-in": { opacity: [0, 1], filter: ["blur(8px)", "blur(0px)"] },
     };
 
     var DEFAULT_DURATION = 0.6;
@@ -60,6 +69,7 @@
         var x = keyframes.x ? keyframes.x[0] : 0;
         var y = keyframes.y ? keyframes.y[0] : 0;
         var scale = keyframes.scale ? keyframes.scale[0] : 1;
+        var rotate = keyframes.rotate ? keyframes.rotate[0] : 0;
         var t = "";
         if (x) {
             t += "translateX(" + x + "px) ";
@@ -70,8 +80,14 @@
         if (scale !== 1) {
             t += "scale(" + scale + ") ";
         }
+        if (rotate) {
+            t += "rotate(" + rotate + "deg) ";
+        }
         if (t) {
             el.style.transform = t.trim();
+        }
+        if (keyframes.filter) {
+            el.style.filter = keyframes.filter[0];
         }
     }
 
@@ -123,12 +139,20 @@
         return { ease: DEFAULT_EASING };
     }
 
+    var REPEAT_TYPES = { loop: true, reverse: true, mirror: true };
+
     function readOpts(el) {
         var delayMs = parseInt(el.getAttribute("data-motion-delay") || "0", 10);
         var duration = parseFloat(el.getAttribute("data-motion-duration") || "");
+        var repeatRaw = el.getAttribute("data-motion-repeat");
+        var repeat = repeatRaw === null ? null : parseInt(repeatRaw, 10);
+        var repeatType = el.getAttribute("data-motion-repeat-type");
         return {
             delay: (isNaN(delayMs) ? 0 : delayMs) / 1000,
             duration: isNaN(duration) ? DEFAULT_DURATION : duration,
+            repeat: repeat !== null && isFinite(repeat) && repeat > 0 ? repeat : null,
+            repeatType:
+                repeatType && REPEAT_TYPES[repeatType] ? repeatType : null,
             once: el.getAttribute("data-motion-once") !== "false",
             scroll: el.hasAttribute("data-motion-scroll"),
         };
@@ -147,6 +171,10 @@
             },
             readEase(el),
         );
+        if (opts.repeat !== null) {
+            timing.repeat = opts.repeat;
+            timing.repeatType = opts.repeatType || "loop";
+        }
 
         if (opts.scroll) {
             // Scroll-linked: drive the keyframes by scroll progress as the
