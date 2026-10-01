@@ -93,6 +93,21 @@ Scroll-linked effects work the same way:
 }))
 ```
 
+## Demo
+
+`examples/motion_demo.rs` is a tiny runnable app showing all of it:
+
+```sh
+cargo run --example motion_demo
+# then open http://127.0.0.1:3000
+```
+
+The page demonstrates a staggered hero entrance, scroll-reveal cards, an
+htmx "Load more" button whose server-rendered batches stagger in via the
+`htmx:afterSwap` re-scan hook, and a scroll-driven progress bar (built on
+`window.Motion`'s `scroll()`, the plugin's escape hatch for bespoke
+choreography).
+
 ## Attribute reference
 
 | Attribute | Values | Default | Notes |
