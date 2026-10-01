@@ -22,6 +22,11 @@ autumn-web = { version = ">=0.7, <0.8", default-features = false, features = ["m
 maud = "0.27"
 
 [dev-dependencies]
+# The `htmx` feature is enabled here (not in [dependencies]) so the demo
+# example can use the framework's built-in htmx handler. Feature
+# unification turns it on for example/test builds only; downstream users
+# of the plugin are unaffected.
+autumn-web = { version = ">=0.7, <0.8", default-features = false, features = ["maud", "embed-assets", "htmx"] }
 base64 = "0.22"
 sha2 = "0.10"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

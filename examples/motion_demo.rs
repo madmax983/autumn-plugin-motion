@@ -16,12 +16,21 @@
 //!   `window.Motion`'s `scroll()`, the plugin's escape hatch for bespoke
 //!   choreography).
 //!
-//! No database, no auth — just Maud, htmx, and Motion.
+//! No database, no auth — just Maud, htmx, and Motion. All JS and CSS live
+//! in `static/` (embedded with `embed_static!()` and referenced via
+//! `asset_url`): Autumn's default CSP blocks inline `<script>` and inline
+//! `<style>` breaks under nonce mode, so nothing is inlined. htmx itself
+//! comes from the framework's built-in handler — no CDN, no vendoring.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use autumn_plugin_motion::{Motion, MotionPlugin, motion_script};
+use autumn_web::assets::asset_url;
 use autumn_web::{Markup, html};
+
+/// The crate's `static/` dir, embedded in the binary. `$CARGO_MANIFEST_DIR`
+/// is the crate root even for examples.
+static STATIC: autumn_web::include_dir::Dir = autumn_web::embed_static!();
 
 /// Batch counter for the `/more` partial, so every htmx batch gets its own
 /// playful headline.
@@ -31,48 +40,11 @@ static BATCH: AtomicU32 = AtomicU32::new(1);
 async fn main() {
     autumn_web::app()
         .plugin(MotionPlugin::new())
+        .embedded_static(&STATIC)
         .routes(autumn_web::routes![index, more])
         .run()
         .await;
 }
-
-/// Minimal page CSS. The interesting bits are the `data-motion` attributes;
-/// the styles just give the animations room to breathe.
-const CSS: &str = r"
-    * { box-sizing: border-box; }
-    body {
-        margin: 0; font-family: system-ui, sans-serif; color: #f4f1ea;
-        background: #14121a;
-    }
-    .progress {
-        position: fixed; top: 0; left: 0; height: 4px; width: 100%;
-        background: linear-gradient(90deg, #c084fc, #f472b6);
-        transform: scaleX(0); transform-origin: left; z-index: 50;
-    }
-    .wrap { max-width: 720px; margin: 0 auto; padding: 0 24px; }
-    .hero { min-height: 92vh; display: flex; flex-direction: column;
-            justify-content: center; }
-    .hero h1 { font-size: 3.2rem; margin: 0 0 12px; }
-    .hero p { font-size: 1.25rem; color: #b9b3c7; max-width: 34rem; }
-    .kicker { text-transform: uppercase; letter-spacing: .2em; font-size: .8rem;
-              color: #c084fc; margin-bottom: 16px; }
-    .cards { display: grid; gap: 20px; padding: 80px 0; }
-    .card { background: #1e1b28; border: 1px solid #352f47; border-radius: 14px;
-            padding: 28px; }
-    .card h2 { margin: 0 0 8px; font-size: 1.4rem; }
-    .card p { margin: 0; color: #b9b3c7; }
-    .htmx-zone { padding: 40px 0 120px; }
-    .htmx-zone button {
-        font-size: 1.1rem; padding: 12px 28px; border-radius: 999px; border: 0;
-        background: #c084fc; color: #14121a; font-weight: 700; cursor: pointer;
-    }
-    .htmx-zone button:hover { background: #d8b4fe; }
-    #more-items { display: grid; gap: 12px; margin-top: 24px; }
-    .item { background: #1e1b28; border: 1px solid #352f47; border-radius: 10px;
-            padding: 16px 20px; }
-    .item b { color: #f472b6; }
-    footer { padding: 60px 0; color: #6f6a80; text-align: center; }
-";
 
 /// The page shell: scripts, progress bar, and content.
 fn layout(content: &Markup) -> Markup {
@@ -82,27 +54,16 @@ fn layout(content: &Markup) -> Markup {
                 meta charset="utf-8";
                 meta name="viewport" content="width=device-width, initial-scale=1";
                 title { "Motion demo" }
-                style { (CSS) }
+                link rel="stylesheet" href=(asset_url("css/demo.css"));
                 // The plugin's vendored Motion build + declarative init
                 // script (both defer + SRI-hashed).
                 (motion_script())
-                // htmx from a CDN — the demo's only external dependency.
-                script src="https://cdn.jsdelivr.net/npm/htmx.org@2/dist/htmx.min.js"
-                    defer {}
+                // htmx from the framework's built-in handler — no CDN.
+                script src=(asset_url("js/htmx.min.js")) defer {}
                 // Bespoke choreography via the plugin's escape hatch:
                 // `window.Motion` is the vendored global. Deferred, so it
                 // runs after the plugin scripts above (document order).
-                script defer {
-                    (maud::PreEscaped(r"
-                    (function () {
-                        var M = window.Motion;
-                        if (!M) return;
-                        var bar = document.querySelector('.progress');
-                        if (!bar) return;
-                        // Page-scroll-driven progress: scaleX 0 -> 1.
-                        M.scroll(M.animate(bar, { scaleX: [0, 1] }, { easing: 'linear' }));
-                    })();"))
-                }
+                script src=(asset_url("js/demo.js")) defer {}
             }
             body {
                 div class="progress" {}

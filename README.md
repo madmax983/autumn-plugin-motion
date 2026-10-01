@@ -108,6 +108,27 @@ htmx "Load more" button whose server-rendered batches stagger in via the
 `window.Motion`'s `scroll()`, the plugin's escape hatch for bespoke
 choreography).
 
+## Gotchas
+
+Learned the hard way while building the demo — the rules for JS/CSS in
+Autumn apps:
+
+- **Never inline `<script>`.** The default CSP is `script-src 'self'` (no
+  `unsafe-inline`), so inline scripts are blocked. Put JS in external
+  files under the app's `static/` dir and reference them with
+  `asset_url("js/app.js")`.
+- **Never inline `<style>` either.** In nonce mode
+  (`security.headers.csp_nonce`) `style-src` becomes `'self'` + nonce
+  only, so inline styles break. Same answer: external stylesheet via
+  `asset_url("css/app.css")`.
+- **htmx ships with the framework.** Don't pull it from a CDN:
+  `asset_url("js/htmx.min.js")` resolves to Autumn's built-in embedded
+  htmx handler — no vendoring needed (it's skipped automatically if you
+  pin your own copy with `autumn assets add htmx@…`).
+- **Embed the app's `static/` dir** with `autumn_web::embed_static!()`
+  and hand it to `AppBuilder::embedded_static(&STATIC)`; `$CARGO_MANIFEST_DIR`
+  is the crate root even for examples, so this works from `examples/` too.
+
 ## Attribute reference
 
 | Attribute | Values | Default | Notes |

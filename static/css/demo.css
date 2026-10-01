@@ -1,0 +1,39 @@
+/* Demo styles for the autumn-plugin-motion example.
+ *
+ * External file on purpose: in nonce mode (`security.headers.csp_nonce`)
+ * `style-src` is `'self'` + nonce only, so inline `<style>` blocks break.
+ * Served from the crate's `static/` dir via `asset_url("css/demo.css")`. */
+
+* { box-sizing: border-box; }
+body {
+    margin: 0; font-family: system-ui, sans-serif; color: #f4f1ea;
+    background: #14121a;
+}
+.progress {
+    position: fixed; top: 0; left: 0; height: 4px; width: 100%;
+    background: linear-gradient(90deg, #c084fc, #f472b6);
+    transform: scaleX(0); transform-origin: left; z-index: 50;
+}
+.wrap { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+.hero { min-height: 92vh; display: flex; flex-direction: column;
+        justify-content: center; }
+.hero h1 { font-size: 3.2rem; margin: 0 0 12px; }
+.hero p { font-size: 1.25rem; color: #b9b3c7; max-width: 34rem; }
+.kicker { text-transform: uppercase; letter-spacing: .2em; font-size: .8rem;
+          color: #c084fc; margin-bottom: 16px; }
+.cards { display: grid; gap: 20px; padding: 80px 0; }
+.card { background: #1e1b28; border: 1px solid #352f47; border-radius: 14px;
+        padding: 28px; }
+.card h2 { margin: 0 0 8px; font-size: 1.4rem; }
+.card p { margin: 0; color: #b9b3c7; }
+.htmx-zone { padding: 40px 0 120px; }
+.htmx-zone button {
+    font-size: 1.1rem; padding: 12px 28px; border-radius: 999px; border: 0;
+    background: #c084fc; color: #14121a; font-weight: 700; cursor: pointer;
+}
+.htmx-zone button:hover { background: #d8b4fe; }
+#more-items { display: grid; gap: 12px; margin-top: 24px; }
+.item { background: #1e1b28; border: 1px solid #352f47; border-radius: 10px;
+        padding: 16px 20px; }
+.item b { color: #f472b6; }
+footer { padding: 60px 0; color: #6f6a80; text-align: center; }
