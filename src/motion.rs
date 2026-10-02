@@ -26,6 +26,12 @@
 //!   first play.
 //! - `data-motion-repeat-type="loop|reverse|mirror"` — how each repeat
 //!   cycle restarts (default `loop`).
+//! - `data-motion-amount="some|all|0.5"` — how much of the element must be
+//!   visible before the `inView` trigger fires (default `some`).
+//! - `data-motion-margin="-100px"` — grow/shrink the viewport for the
+//!   `inView` trigger, in CSS margin syntax (`px` or `%`, up to four
+//!   values). Negative waits until the element is further inside;
+//!   positive fires early.
 
 use autumn_web::{Markup, html};
 
@@ -137,6 +143,41 @@ impl RepeatType {
     }
 }
 
+/// How much of the element must be visible before its `inView` animation
+/// triggers.
+///
+/// Serializes to the `data-motion-amount` attribute; mirrors Motion's
+/// `inView` `amount` option (`"some" | "all" | number`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum InViewAmount {
+    /// Trigger when any part of the element enters the viewport
+    /// (Motion's default).
+    Some,
+    /// Trigger only when the whole element is visible.
+    All,
+    /// Trigger when this fraction (0.0–1.0) of the element is visible.
+    /// Values outside the range are clamped.
+    Fraction(f32),
+}
+
+impl InViewAmount {
+    /// The `data-motion-amount` attribute value.
+    fn attr_value(self) -> String {
+        match self {
+            Self::Some => "some".to_string(),
+            Self::All => "all".to_string(),
+            Self::Fraction(v) => format!("{}", v.clamp(0.0, 1.0)),
+        }
+    }
+}
+
+impl From<f32> for InViewAmount {
+    /// Lets `.amount(0.5)` mean `.amount(InViewAmount::Fraction(0.5))`.
+    fn from(v: f32) -> Self {
+        Self::Fraction(v)
+    }
+}
+
 /// An animation preset, mirroring the keyframes in `assets/init.js`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Preset {
@@ -216,6 +257,8 @@ pub struct Motion {
     ease: Option<Ease>,
     repeat: Option<u32>,
     repeat_type: Option<RepeatType>,
+    amount: Option<InViewAmount>,
+    margin: Option<String>,
     once: bool,
     stagger_ms: Option<u32>,
     scroll: bool,
@@ -315,6 +358,8 @@ impl Motion {
             ease: None,
             repeat: None,
             repeat_type: None,
+            amount: None,
+            margin: None,
             once: true,
             stagger_ms: None,
             scroll: false,
@@ -378,6 +423,46 @@ impl Motion {
         self
     }
 
+    /// How much of the element must be visible before the `inView`
+    /// animation triggers: [`InViewAmount::Some`] (default),
+    /// [`InViewAmount::All`], or [`InViewAmount::Fraction`]. A bare `f32`
+    /// works too, via `From`:
+    ///
+    /// ```rust
+    /// use autumn_plugin_motion::{InViewAmount, Motion};
+    /// use autumn_web::{Markup, html};
+    ///
+    /// let a: Markup = Motion::fade_up().amount(0.5).wrap(html! { p { "Hi" } });
+    /// assert!(a.into_string().contains(r#"data-motion-amount="0.5""#));
+    /// let b: Markup = Motion::fade_up()
+    ///     .amount(InViewAmount::All)
+    ///     .wrap(html! { p { "Hi" } });
+    /// assert!(b.into_string().contains(r#"data-motion-amount="all""#));
+    /// ```
+    #[must_use]
+    pub fn amount(mut self, amount: impl Into<InViewAmount>) -> Self {
+        self.amount = Some(amount.into());
+        self
+    }
+
+    /// Grow or shrink the viewport used for the `inView` trigger, in CSS
+    /// margin syntax with `px` or `%` values — e.g. `"-100px"` waits until
+    /// the element is 100px inside the viewport, `"80px"` fires early.
+    /// Up to four space-separated values, like CSS `margin`.
+    ///
+    /// ```rust
+    /// use autumn_plugin_motion::Motion;
+    /// use autumn_web::{Markup, html};
+    ///
+    /// let html: Markup = Motion::fade_up().margin("-100px").wrap(html! { p { "Hi" } });
+    /// assert!(html.into_string().contains(r#"data-motion-margin="-100px""#));
+    /// ```
+    #[must_use]
+    pub fn margin(mut self, margin: impl Into<String>) -> Self {
+        self.margin = Some(margin.into());
+        self
+    }
+
     /// When `false`, re-animate every time the element enters the viewport
     /// instead of only the first time.
     #[must_use]
@@ -433,6 +518,8 @@ impl Motion {
         let ease = self.ease.map(Ease::attr_value);
         let repeat = self.repeat.map(|n| n.to_string());
         let repeat_type = self.repeat_type.map(RepeatType::attr);
+        let amount = self.amount.map(InViewAmount::attr_value);
+        let margin = self.margin;
         html! {
             div data-motion=(preset)
                 data-motion-delay=[delay.as_deref()]
@@ -440,6 +527,8 @@ impl Motion {
                 data-motion-ease=[ease.as_deref()]
                 data-motion-repeat=[repeat.as_deref()]
                 data-motion-repeat-type=[repeat_type]
+                data-motion-amount=[amount.as_deref()]
+                data-motion-margin=[margin.as_deref()]
                 data-motion-once=[once]
                 data-motion-stagger=[stagger.as_deref()]
                 data-motion-scroll[scroll]
@@ -494,6 +583,8 @@ mod tests {
             "data-motion-duration",
             "data-motion-ease",
             "data-motion-repeat",
+            "data-motion-amount",
+            "data-motion-margin",
             "data-motion-once",
             "data-motion-stagger",
             "data-motion-scroll",
@@ -562,6 +653,30 @@ mod tests {
             html.contains(r#"data-motion-repeat-type="mirror""#),
             "{html}"
         );
+    }
+
+    #[test]
+    fn amount_variants_render() {
+        let html = render(Motion::fade_up().amount(0.5));
+        assert!(html.contains(r#"data-motion-amount="0.5""#), "{html}");
+        let html = render(Motion::fade_up().amount(InViewAmount::All));
+        assert!(html.contains(r#"data-motion-amount="all""#), "{html}");
+        let html = render(Motion::fade_up().amount(InViewAmount::Some));
+        assert!(html.contains(r#"data-motion-amount="some""#), "{html}");
+    }
+
+    #[test]
+    fn amount_fraction_clamps_to_unit_range() {
+        let html = render(Motion::fade_up().amount(1.5));
+        assert!(html.contains(r#"data-motion-amount="1""#), "{html}");
+        let html = render(Motion::fade_up().amount(-0.2));
+        assert!(html.contains(r#"data-motion-amount="0""#), "{html}");
+    }
+
+    #[test]
+    fn margin_renders() {
+        let html = render(Motion::fade_up().margin("-100px"));
+        assert!(html.contains(r#"data-motion-margin="-100px""#), "{html}");
     }
 
     #[test]

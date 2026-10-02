@@ -1,8 +1,8 @@
 {
   "files": {
     "init.js": {
-      "bytes": 9702,
-      "integrity": "sha384-WU3HC/XqwofYGPNqlOi/usS9XZ6fAJBExLtSgkKS3Fapc6R/rRXaEZUYI3hAS4zu",
+      "bytes": 11894,
+      "integrity": "sha384-Noz3UaQI3wQieorTfjZdAxUEFPnP/2y2PG32L0LcddEq7lkJPxCjgLrQm6Zl3zNj",
       "source": "plugin-authored (this repo)"
     },
     "motion.min.js": {

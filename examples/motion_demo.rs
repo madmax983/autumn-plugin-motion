@@ -9,7 +9,8 @@
 //! Then visit <http://127.0.0.1:3000> and:
 //!
 //! - watch the hero cascade in on load (staggered `fade-up`),
-//! - scroll down to see the cards reveal as they enter the viewport,
+//! - scroll down to see the cards reveal as they enter the viewport —
+//!   the last one fires early via `data-motion-margin="80px"`,
 //! - smash the "Load more" button — each htmx batch staggers in with no
 //!   extra JavaScript, thanks to the plugin's `htmx:afterSwap` re-scan,
 //! - watch the thin progress bar at the top track page scroll (driven by
@@ -105,14 +106,14 @@ async fn index() -> Markup {
                 h2 { "Scroll-aware" }
                 p { "Elements animate when they scroll into view — below the fold waits its turn." }
             }
-            div class="card" data-motion="zoom-in" data-motion-delay="80" data-motion-ease="back-out" data-motion-repeat="2" data-motion-repeat-type="mirror" {
+            div class="card" data-motion="zoom-in" data-motion-delay="80" data-motion-ease="back-out" data-motion-repeat="2" data-motion-repeat-type="mirror" data-motion-margin="80px" {
                 h2 { "Kind by default" }
                 p { "prefers-reduced-motion disables everything; content stays fully visible." }
             }
         }
         // 3. htmx swap: each batch animates in via the afterSwap re-scan.
         section class="htmx-zone" {
-            (Motion::fade_up().wrap(html! {
+            (Motion::fade_up().amount(0.6).wrap(html! {
                 h2 { "The htmx party trick" }
                 p {
                     "Hit the button. The server returns plain HTML; the \

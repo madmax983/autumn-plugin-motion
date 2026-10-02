@@ -142,6 +142,8 @@ Autumn apps:
 | `data-motion-ease` | `linear`, `ease-in`, `ease-out`, `ease-in-out`, `circ-in`, `circ-out`, `circ-in-out`, `back-in`, `back-out`, `back-in-out`, `anticipate`, `cubic-bezier(0.16,1,0.3,1)`, `spring(300,20,1)` | `cubic-bezier(0.16,1,0.3,1)` | Easing curve. `spring(stiffness,damping,mass)` uses spring physics. |
 | `data-motion-repeat` | times, e.g. `2` | — | Repeat the animation `n` times after the first play. |
 | `data-motion-repeat-type` | `loop`, `reverse`, `mirror` | `loop` | How each repeat cycle restarts. |
+| `data-motion-amount` | `some`, `all`, or a fraction `0`–`1`, e.g. `0.5` | `some` | How much of the element must be visible before the `inView` trigger fires. |
+| `data-motion-margin` | CSS margin syntax in `px`/`%`, e.g. `-100px`, `80px` | — | Grow/shrink the viewport for the `inView` trigger. Negative waits until the element is further inside; positive fires early. Invalid values are ignored. |
 
 The Rust [`Motion`](https://docs.rs/autumn-plugin-motion) builder mirrors
 all of these: `Motion::fade_up()`, `fade_down()`, `fade_left()`,
@@ -149,6 +151,7 @@ all of these: `Motion::fade_up()`, `fade_down()`, `fade_left()`,
 `slide_left()`, `slide_right()`, `slide_up()`, `slide_down()`,
 `rotate_in()`, `blur_in()`, plus `.delay(ms)`, `.duration(secs)`,
 `.ease(Ease::Out)`, `.repeat(n)`, `.repeat_type(RepeatType::Mirror)`,
+`.amount(0.5)` (or `.amount(InViewAmount::All)`), `.margin("-100px")`,
 `.once(bool)`, `.stagger(ms)`, `.scroll()`, and `.wrap(markup)`. The
 [`Ease`] enum covers named easings, `Ease::CubicBezier(x1, y1, x2, y2)`,
 and `Ease::Spring { stiffness, damping, mass }`:

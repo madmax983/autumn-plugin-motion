@@ -140,6 +140,37 @@
     }
 
     var REPEAT_TYPES = { loop: true, reverse: true, mirror: true };
+    var AMOUNT_KEYWORDS = { some: true, all: true };
+    // rootMargin only accepts px/% lengths, 1-4 of them like CSS margin.
+    // An invalid rootMargin makes IntersectionObserver throw, which would
+    // kill the whole scan — so validate and drop bad values instead.
+    var MARGIN_RE =
+        /^-?\d+(\.\d+)?(px|%)(\s+-?\d+(\.\d+)?(px|%)){0,3}$/;
+
+    function readAmount(el) {
+        var raw = el.getAttribute("data-motion-amount");
+        if (raw === null || raw === "") {
+            return null;
+        }
+        var word = raw.trim().toLowerCase();
+        if (AMOUNT_KEYWORDS[word]) {
+            return word;
+        }
+        var n = parseFloat(word);
+        if (isNaN(n)) {
+            return null;
+        }
+        return Math.min(1, Math.max(0, n));
+    }
+
+    function readMargin(el) {
+        var raw = el.getAttribute("data-motion-margin");
+        if (raw === null) {
+            return null;
+        }
+        var margin = raw.trim();
+        return MARGIN_RE.test(margin) ? margin : null;
+    }
 
     function readOpts(el) {
         var delayMs = parseInt(el.getAttribute("data-motion-delay") || "0", 10);
@@ -153,6 +184,8 @@
             repeat: repeat !== null && isFinite(repeat) && repeat > 0 ? repeat : null,
             repeatType:
                 repeatType && REPEAT_TYPES[repeatType] ? repeatType : null,
+            amount: readAmount(el),
+            margin: readMargin(el),
             once: el.getAttribute("data-motion-once") !== "false",
             scroll: el.hasAttribute("data-motion-scroll"),
         };
@@ -174,6 +207,16 @@
         if (opts.repeat !== null) {
             timing.repeat = opts.repeat;
             timing.repeatType = opts.repeatType || "loop";
+        }
+        // inView's `margin` maps to IntersectionObserver's rootMargin and
+        // `amount` to its threshold ("some"/"all"/number).
+        // NOTE: this Motion build's inView takes { root, margin, amount } —
+        // there is no `once` option. Once-ness comes from the callback:
+        // return nothing and the observer disconnects that element after
+        // the first trigger; return a cleanup and it stays observed.
+        var viewOpts = { amount: opts.amount !== null ? opts.amount : "some" };
+        if (opts.margin !== null) {
+            viewOpts.margin = opts.margin;
         }
 
         if (opts.scroll) {
@@ -204,15 +247,22 @@
             M.inView(
                 el,
                 function () {
-                    M.animate(
+                    var controls = M.animate(
                         kids,
                         keyframes,
                         Object.assign({}, timing, {
                             delay: M.stagger(step, { startDelay: opts.delay }),
                         }),
                     );
+                    // Returning a cleanup keeps the element observed, so the
+                    // cascade replays on every entry when once is false.
+                    if (!opts.once) {
+                        return function () {
+                            controls.stop();
+                        };
+                    }
                 },
-                { once: opts.once },
+                viewOpts,
             );
             return;
         }
@@ -220,9 +270,14 @@
         M.inView(
             el,
             function () {
-                M.animate(el, keyframes, timing);
+                var controls = M.animate(el, keyframes, timing);
+                if (!opts.once) {
+                    return function () {
+                        controls.stop();
+                    };
+                }
             },
-            { once: opts.once },
+            viewOpts,
         );
     }
 

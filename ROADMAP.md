@@ -70,12 +70,14 @@ Directions and combos Motion keyframes express trivially:
 - `.repeat(n)` / `.mirror(true)` → `data-motion-repeat`,
   `data-motion-repeat-type` (loop/mirror) for pulsing badges etc.
 
-### Phase 3 — Viewport options
+### Phase 3 — Viewport options ✅ done 2026-10-01
 `inView` takes `{ once, amount, margin }`; we only expose `once`.
 
 - `.amount(0.5)` → `data-motion-amount` (fraction visible to trigger)
 - `.margin("-100px")` → `data-motion-margin` (root margin shrink/grow)
 - Keep `once` as-is.
+
+Also fixed while here: the vendored `inView` takes `{ root, margin, amount }` — there is no `once` option, so the `{ once }` object init.js passed was silently ignored (same class of bug as the `easing`→`ease` fix) and `data-motion-once="false"` never re-triggered. Now the callback returns a cleanup when `once` is false, keeping the element observed so it re-animates on every entry; the dead `{ once }` object is gone.
 
 ### Phase 4 — Scroll-linked, typed
 Today `data-motion-scroll` is boolean-ish and the demo's progress bar is
