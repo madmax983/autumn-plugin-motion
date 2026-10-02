@@ -89,8 +89,34 @@ Scroll-linked effects work the same way:
 
 ```rust
 (Motion::fade().scroll().wrap(html! {
-    div class="progress-bar" { }
+    div class="scrub-me" { }
 }))
+```
+
+Target another element's traversal, or remap the offsets:
+
+```rust
+// Fade as #hero crosses the viewport; finish when the element's center
+// hits the viewport's center.
+(Motion::fade()
+    .scroll_target("#hero")
+    .scroll_offset(["start end", "center center"])
+    .wrap(markup))
+```
+
+Parallax drift and the opinionated progress bar:
+
+```rust
+use autumn_plugin_motion::{Motion, motion_stylesheet};
+
+// In <head>, once per page:
+(motion_stylesheet())
+
+// Hero art that lags the scroll:
+(Motion::parallax(0.3).wrap(markup))
+
+// A fixed top bar that fills with page scroll — zero hand-written JS:
+(Motion::scroll_progress())
 ```
 
 ## Demo
@@ -102,11 +128,11 @@ cargo run --example motion_demo
 # then open http://127.0.0.1:3000
 ```
 
-The page demonstrates a staggered hero entrance, scroll-reveal cards, an
+The page demonstrates a staggered hero entrance with parallax drift,
+scroll-reveal cards (one scrubbed by the scroll position itself), an
 htmx "Load more" button whose server-rendered batches stagger in via the
-`htmx:afterSwap` re-scan hook, and a scroll-driven progress bar (built on
-`window.Motion`'s `scroll()`, the plugin's escape hatch for bespoke
-choreography).
+`htmx:afterSwap` re-scan hook, and a scroll-driven progress bar
+(`Motion::scroll_progress()` — one line, zero hand-written JS).
 
 ## Gotchas
 
@@ -133,12 +159,15 @@ Autumn apps:
 
 | Attribute | Values | Default | Notes |
 |---|---|---|---|
-| `data-motion` | `fade-up`, `fade-down`, `fade-left`, `fade-right`, `fade`, `scale`, `zoom-in`, `zoom-out`, `slide-left`, `slide-right`, `slide-up`, `slide-down`, `rotate-in`, `blur-in` | `fade-up` | The preset. Unknown values fall back to `fade-up`. |
+| `data-motion` | `fade-up`, `fade-down`, `fade-left`, `fade-right`, `fade`, `scale`, `zoom-in`, `zoom-out`, `slide-left`, `slide-right`, `slide-up`, `slide-down`, `rotate-in`, `blur-in` | `fade-up` | The preset. Unknown values fall back to `fade-up`. `parallax` and `scroll-progress` are special scroll-driven kinds (see below), not entrance presets. |
 | `data-motion-delay` | milliseconds, e.g. `150` | `0` | Start delay. |
 | `data-motion-duration` | seconds, e.g. `1.2` | `0.6` | Animation duration. |
 | `data-motion-once` | `false` | _(once)_ | Set to `false` to re-animate every time the element enters the viewport. |
 | `data-motion-stagger` | milliseconds, e.g. `60` | — | On a container: cascade the preset over its direct children. |
 | `data-motion-scroll` | _(bare attribute)_ | — | Drive the keyframes by scroll progress instead of animating on entry. |
+| `data-motion-scroll-target` | CSS selector, e.g. `#hero` | _(the element itself)_ | Drive the scroll-linked keyframes by another element's traversal. Implies `data-motion-scroll`. |
+| `data-motion-scroll-offset` | comma-separated edges, e.g. `start end,center center` | `start end,end start` | Remap the scroll-linked keyframes onto custom viewport edges. Invalid entries are ignored. |
+| `data-motion-parallax` | factor, e.g. `0.3` | `0.3` | With `data-motion="parallax"`: scroll-linked drift of `factor` × the element's own height. Positive lags the scroll; negative opposes it. |
 | `data-motion-ease` | `linear`, `ease-in`, `ease-out`, `ease-in-out`, `circ-in`, `circ-out`, `circ-in-out`, `back-in`, `back-out`, `back-in-out`, `anticipate`, `cubic-bezier(0.16,1,0.3,1)`, `spring(300,20,1)` | `cubic-bezier(0.16,1,0.3,1)` | Easing curve. `spring(stiffness,damping,mass)` uses spring physics. |
 | `data-motion-repeat` | times, e.g. `2` | — | Repeat the animation `n` times after the first play. |
 | `data-motion-repeat-type` | `loop`, `reverse`, `mirror` | `loop` | How each repeat cycle restarts. |
@@ -152,7 +181,11 @@ all of these: `Motion::fade_up()`, `fade_down()`, `fade_left()`,
 `rotate_in()`, `blur_in()`, plus `.delay(ms)`, `.duration(secs)`,
 `.ease(Ease::Out)`, `.repeat(n)`, `.repeat_type(RepeatType::Mirror)`,
 `.amount(0.5)` (or `.amount(InViewAmount::All)`), `.margin("-100px")`,
-`.once(bool)`, `.stagger(ms)`, `.scroll()`, and `.wrap(markup)`. The
+`.scroll_target("#hero")`, `.scroll_offset(["start end", "center center"])`,
+`.once(bool)`, `.stagger(ms)`, `.scroll()`, and `.wrap(markup)`.
+`Motion::parallax(0.3)` builds a scroll-drift wrapper and
+`Motion::scroll_progress()` renders the opinionated progress-bar element
+(pair it with `motion_stylesheet()` in `<head>`). The
 [`Ease`] enum covers named easings, `Ease::CubicBezier(x1, y1, x2, y2)`,
 and `Ease::Spring { stiffness, damping, mass }`:
 

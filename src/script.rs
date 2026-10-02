@@ -6,7 +6,7 @@
 
 use autumn_web::{Markup, html};
 
-use crate::assets::{INIT_JS_INTEGRITY, MOTION_JS_INTEGRITY};
+use crate::assets::{INIT_JS_INTEGRITY, MOTION_CSS_INTEGRITY, MOTION_JS_INTEGRITY};
 
 /// Renders the `<script>` tags loading Motion and the plugin init script.
 ///
@@ -32,6 +32,26 @@ pub fn motion_script() -> Markup {
             integrity=(INIT_JS_INTEGRITY)
             crossorigin="anonymous"
             defer {}
+    }
+}
+
+/// Renders the `<link>` tag for the plugin stylesheet.
+///
+/// Only needed when you use [`crate::Motion::scroll_progress`] (or want the
+/// plugin's default styles); the animation behavior itself is class-free.
+///
+/// ```rust
+/// use autumn_plugin_motion::motion_stylesheet;
+///
+/// let html = motion_stylesheet().into_string();
+/// assert!(html.contains(r#"href="/__motion/motion.css""#), "{html}");
+/// ```
+#[must_use]
+pub fn motion_stylesheet() -> Markup {
+    html! {
+        link rel="stylesheet" href="/__motion/motion.css"
+            integrity=(MOTION_CSS_INTEGRITY)
+            crossorigin="anonymous";
     }
 }
 

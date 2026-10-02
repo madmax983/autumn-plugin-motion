@@ -32,6 +32,17 @@
 //!   `inView` trigger, in CSS margin syntax (`px` or `%`, up to four
 //!   values). Negative waits until the element is further inside;
 //!   positive fires early.
+//! - `data-motion="parallax"` + `data-motion-parallax="0.3"` — scroll-linked
+//!   drift: the element travels `0.3` × its own height as it moves through
+//!   the viewport (see [`Motion::parallax`]).
+//! - `data-motion="scroll-progress"` — opinionated page-scroll progress bar
+//!   (see [`Motion::scroll_progress`]).
+//! - `data-motion-scroll-target="#hero"` — drive the scroll-linked keyframes
+//!   by *another* element's traversal (a CSS selector; falls back to the
+//!   element itself when missing). Implies `data-motion-scroll`.
+//! - `data-motion-scroll-offset="start end,center center"` — comma-separated
+//!   scroll offsets mapping target/container edges (default
+//!   `"start end,end start"`). Invalid entries are ignored.
 
 use autumn_web::{Markup, html};
 
@@ -209,6 +220,8 @@ pub enum Preset {
     RotateIn,
     /// Fade in while de-blurring from 8px.
     BlurIn,
+    /// Scroll-linked drift (see [`Motion::parallax`]).
+    Parallax,
 }
 
 impl Preset {
@@ -229,6 +242,7 @@ impl Preset {
             Self::SlideDown => "slide-down",
             Self::RotateIn => "rotate-in",
             Self::BlurIn => "blur-in",
+            Self::Parallax => "parallax",
         }
     }
 }
@@ -259,6 +273,9 @@ pub struct Motion {
     repeat_type: Option<RepeatType>,
     amount: Option<InViewAmount>,
     margin: Option<String>,
+    scroll_target: Option<String>,
+    scroll_offset: Option<[String; 2]>,
+    parallax_factor: Option<f32>,
     once: bool,
     stagger_ms: Option<u32>,
     scroll: bool,
@@ -349,6 +366,56 @@ impl Motion {
         Self::preset(Preset::BlurIn)
     }
 
+    /// Scroll-linked drift for hero art and backgrounds.
+    ///
+    /// As the element travels through the viewport, it translates by
+    /// `factor` × its own height: positive lags the scroll (drifts down as
+    /// you scroll down), negative moves against it. `0.3` is a good
+    /// default; keep `|factor|` modest — large values fling content away.
+    ///
+    /// Parallax is inherently scroll-linked and ignores the `scroll`,
+    /// `scroll_target`, and `scroll_offset` modifiers.
+    ///
+    /// ```rust
+    /// use autumn_plugin_motion::Motion;
+    /// use autumn_web::{Markup, html};
+    ///
+    /// let html: Markup = Motion::parallax(0.3).wrap(html! { p { "Hi" } });
+    /// let s = html.into_string();
+    /// assert!(s.contains(r#"data-motion="parallax""#), "{s}");
+    /// assert!(s.contains(r#"data-motion-parallax="0.3""#), "{s}");
+    /// ```
+    #[must_use]
+    pub const fn parallax(factor: f32) -> Self {
+        let mut motion = Self::preset(Preset::Parallax);
+        motion.parallax_factor = Some(factor);
+        motion
+    }
+
+    /// Opinionated page-scroll progress bar element.
+    ///
+    /// Renders a fixed top bar that fills left-to-right as the page
+    /// scrolls — no hand-written JavaScript. Include the plugin stylesheet
+    /// once per page for the default styling:
+    ///
+    /// ```rust
+    /// use autumn_plugin_motion::{Motion, motion_stylesheet};
+    /// use autumn_web::{Markup, html};
+    ///
+    /// let head: Markup = html! { (motion_stylesheet()) };
+    /// assert!(head.into_string().contains("/__motion/motion.css"));
+    /// let bar: Markup = Motion::scroll_progress();
+    /// let s = bar.into_string();
+    /// assert!(s.contains(r#"data-motion="scroll-progress""#), "{s}");
+    /// assert!(s.contains(r#"class="motion-progress""#), "{s}");
+    /// ```
+    #[must_use]
+    pub fn scroll_progress() -> Markup {
+        html! {
+            div class="motion-progress" data-motion="scroll-progress" {}
+        }
+    }
+
     /// Builds a [`Motion`] from a raw preset.
     const fn preset(preset: Preset) -> Self {
         Self {
@@ -360,6 +427,9 @@ impl Motion {
             repeat_type: None,
             amount: None,
             margin: None,
+            scroll_target: None,
+            scroll_offset: None,
+            parallax_factor: None,
             once: true,
             stagger_ms: None,
             scroll: false,
@@ -487,6 +557,60 @@ impl Motion {
         self
     }
 
+    /// Drive the scroll-linked keyframes by *another* element's traversal
+    /// of the viewport — a CSS selector like `"#hero"`. When the selector
+    /// matches nothing, the element itself is used.
+    ///
+    /// Implies [`Motion::scroll`].
+    ///
+    /// ```rust
+    /// use autumn_plugin_motion::Motion;
+    /// use autumn_web::{Markup, html};
+    ///
+    /// let html: Markup = Motion::fade()
+    ///     .scroll_target("#hero")
+    ///     .wrap(html! { p { "Hi" } });
+    /// let s = html.into_string();
+    /// assert!(s.contains(r#"data-motion-scroll-target="#), "{s}");
+    /// assert!(s.contains("#hero"), "{s}");
+    /// assert!(s.contains("data-motion-scroll"), "{s}");
+    /// ```
+    #[must_use]
+    pub fn scroll_target(mut self, selector: impl Into<String>) -> Self {
+        self.scroll_target = Some(selector.into());
+        self.scroll = true;
+        self
+    }
+
+    /// Remap the scroll-linked keyframes onto custom viewport edges, e.g.
+    /// `["start end", "center center"]` finishes the animation when the
+    /// element's center reaches the viewport's center (default
+    /// `["start end", "end start"]`: the full traversal).
+    ///
+    /// Each entry names a target edge and a container edge
+    /// (`start`/`center`/`end`, or a number with optional `px`/`%`).
+    /// Implies [`Motion::scroll`].
+    ///
+    /// ```rust
+    /// use autumn_plugin_motion::Motion;
+    /// use autumn_web::{Markup, html};
+    ///
+    /// let html: Markup = Motion::fade()
+    ///     .scroll_offset(["start end", "center center"])
+    ///     .wrap(html! { p { "Hi" } });
+    /// assert!(
+    ///     html.into_string().contains(
+    ///         r#"data-motion-scroll-offset="start end,center center""#
+    ///     )
+    /// );
+    /// ```
+    #[must_use]
+    pub fn scroll_offset(mut self, offset: [&str; 2]) -> Self {
+        self.scroll_offset = Some([offset[0].into(), offset[1].into()]);
+        self.scroll = true;
+        self
+    }
+
     /// Wraps `markup` in a `<div>` carrying the animation attributes.
     ///
     /// This is the Maud-friendly composition path — no attribute splicing,
@@ -520,6 +644,9 @@ impl Motion {
         let repeat_type = self.repeat_type.map(RepeatType::attr);
         let amount = self.amount.map(InViewAmount::attr_value);
         let margin = self.margin;
+        let scroll_target = self.scroll_target;
+        let scroll_offset = self.scroll_offset.map(|[a, b]| format!("{a},{b}"));
+        let parallax = self.parallax_factor.map(|f| format!("{f}"));
         html! {
             div data-motion=(preset)
                 data-motion-delay=[delay.as_deref()]
@@ -529,6 +656,9 @@ impl Motion {
                 data-motion-repeat-type=[repeat_type]
                 data-motion-amount=[amount.as_deref()]
                 data-motion-margin=[margin.as_deref()]
+                data-motion-parallax=[parallax.as_deref()]
+                data-motion-scroll-target=[scroll_target.as_deref()]
+                data-motion-scroll-offset=[scroll_offset.as_deref()]
                 data-motion-once=[once]
                 data-motion-stagger=[stagger.as_deref()]
                 data-motion-scroll[scroll]
@@ -585,6 +715,9 @@ mod tests {
             "data-motion-repeat",
             "data-motion-amount",
             "data-motion-margin",
+            "data-motion-parallax",
+            "data-motion-scroll-target",
+            "data-motion-scroll-offset",
             "data-motion-once",
             "data-motion-stagger",
             "data-motion-scroll",
@@ -677,6 +810,37 @@ mod tests {
     fn margin_renders() {
         let html = render(Motion::fade_up().margin("-100px"));
         assert!(html.contains(r#"data-motion-margin="-100px""#), "{html}");
+    }
+
+    #[test]
+    fn parallax_renders_kind_and_factor() {
+        let html = render(Motion::parallax(0.3));
+        assert!(html.contains(r#"data-motion="parallax""#), "{html}");
+        assert!(html.contains(r#"data-motion-parallax="0.3""#), "{html}");
+    }
+
+    #[test]
+    fn scroll_target_renders_and_implies_scroll() {
+        let html = render(Motion::fade().scroll_target("#hero"));
+        assert!(html.contains("data-motion-scroll-target"), "{html}");
+        assert!(html.contains("#hero"), "{html}");
+        assert!(html.contains("data-motion-scroll"), "{html}");
+    }
+
+    #[test]
+    fn scroll_offset_renders_comma_separated() {
+        let html = render(Motion::fade().scroll_offset(["start end", "center center"]));
+        assert!(
+            html.contains(r#"data-motion-scroll-offset="start end,center center""#),
+            "{html}"
+        );
+    }
+
+    #[test]
+    fn scroll_progress_renders_opinionated_bar() {
+        let html = Motion::scroll_progress().into_string();
+        assert!(html.contains(r#"data-motion="scroll-progress""#), "{html}");
+        assert!(html.contains(r#"class="motion-progress""#), "{html}");
     }
 
     #[test]

@@ -1,0 +1,23 @@
+/* autumn-plugin-motion default styles.
+ *
+ * Only `.motion-progress` (rendered by `Motion::scroll_progress()`) needs
+ * this. Include it once per page with `motion_stylesheet()`:
+ *
+ *     (motion_stylesheet())
+ *
+ * Served from memory at `/__motion/motion.css`; SRI-pinned in
+ * `src/assets.rs` and `assets/manifest.json` like the scripts.
+ */
+.motion-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    z-index: 9999;
+    pointer-events: none;
+    background: #7c3aed;
+    /* Filled left-to-right by init.js (scaleX driven by page scroll). */
+    transform-origin: 0 50%;
+    transform: scaleX(0);
+}

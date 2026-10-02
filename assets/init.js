@@ -172,6 +172,62 @@
         return MARGIN_RE.test(margin) ? margin : null;
     }
 
+    var OFFSET_EDGE_RE = /^(start|center|end|-?\d+(\.\d+)?(px|%)?)$/i;
+
+    // Parses `data-motion-scroll-offset="start end,center center"` into
+    // Motion's offset array. Entries must be two edges each; anything else
+    // is ignored so a typo can't break the scan.
+    function readScrollOffset(el) {
+        var raw = el.getAttribute("data-motion-scroll-offset");
+        if (!raw) {
+            return null;
+        }
+        var parts = raw
+            .split(",")
+            .map(function (p) {
+                return p.trim();
+            })
+            .filter(function (p) {
+                return p.length > 0;
+            });
+        if (parts.length < 2) {
+            return null;
+        }
+        for (var i = 0; i < parts.length; i++) {
+            var tokens = parts[i].split(/\s+/);
+            if (
+                tokens.length !== 2 ||
+                !OFFSET_EDGE_RE.test(tokens[0]) ||
+                !OFFSET_EDGE_RE.test(tokens[1])
+            ) {
+                return null;
+            }
+        }
+        return parts;
+    }
+
+    // Resolves the scroll-linked target/offset for an element:
+    // `data-motion-scroll-target` names another element (a CSS selector),
+    // falling back to the element itself when absent or unmatched.
+    function scrollLink(el) {
+        var target = el;
+        var sel = el.getAttribute("data-motion-scroll-target");
+        if (sel) {
+            try {
+                var found = document.querySelector(sel.trim());
+                if (found) {
+                    target = found;
+                }
+            } catch (e) {
+                // Invalid selector: keep the element itself.
+            }
+        }
+        return {
+            target: target,
+            offset: readScrollOffset(el) || ["start end", "end start"],
+        };
+    }
+
     function readOpts(el) {
         var delayMs = parseInt(el.getAttribute("data-motion-delay") || "0", 10);
         var duration = parseFloat(el.getAttribute("data-motion-duration") || "");
@@ -193,8 +249,37 @@
 
     function animateEl(M, el) {
         var kind = el.getAttribute("data-motion") || "fade-up";
-        var keyframes = PRESETS[kind] || PRESETS["fade-up"];
         var opts = readOpts(el);
+
+        if (kind === "scroll-progress") {
+            // Opinionated page-scroll progress bar
+            // (see Motion::scroll_progress). No target: tracks the whole
+            // document. Always linear — the scroll position is the clock.
+            M.scroll(M.animate(el, { scaleX: [0, 1] }, { ease: "linear" }));
+            return;
+        }
+        if (kind === "parallax") {
+            // Scroll-linked drift: the element travels `factor` × its own
+            // height while moving through the viewport. Positive lags the
+            // scroll (drifts down as you scroll down); negative opposes it.
+            var factor = parseFloat(
+                el.getAttribute("data-motion-parallax") || "",
+            );
+            if (!isFinite(factor)) {
+                factor = 0.3;
+            }
+            M.scroll(
+                M.animate(
+                    el,
+                    { y: [0, el.offsetHeight * factor] },
+                    { ease: "linear" },
+                ),
+                { target: el, offset: ["start end", "end start"] },
+            );
+            return;
+        }
+
+        var keyframes = PRESETS[kind] || PRESETS["fade-up"];
         // NOTE: Motion's transition option is `ease`, not `easing` — the
         // unknown `easing` key was silently ignored before Phase 1.
         var timing = Object.assign(
@@ -220,13 +305,12 @@
         }
 
         if (opts.scroll) {
-            // Scroll-linked: drive the keyframes by scroll progress as the
-            // element travels through the viewport. Always linear — the
-            // scroll position is the clock.
-            M.scroll(M.animate(el, keyframes, { ease: "linear" }), {
-                target: el,
-                offset: ["start end", "end start"],
-            });
+            // Scroll-linked: drive the keyframes by scroll progress.
+            // Always linear — the scroll position is the clock.
+            M.scroll(
+                M.animate(el, keyframes, { ease: "linear" }),
+                scrollLink(el),
+            );
             return;
         }
 
@@ -306,7 +390,12 @@
             var stagger = el.hasAttribute("data-motion-stagger");
             if (!stagger) {
                 var kind = el.getAttribute("data-motion") || "fade-up";
-                hideFrom(el, PRESETS[kind] || PRESETS["fade-up"]);
+                // scroll-progress and parallax manage their own transforms;
+                // hiding them from an entrance preset would leave the bar
+                // invisible or the art offset at rest.
+                if (kind !== "scroll-progress" && kind !== "parallax") {
+                    hideFrom(el, PRESETS[kind] || PRESETS["fade-up"]);
+                }
             }
             animateEl(M, el);
         });

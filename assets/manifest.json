@@ -1,8 +1,8 @@
 {
   "files": {
     "init.js": {
-      "bytes": 11894,
-      "integrity": "sha384-Noz3UaQI3wQieorTfjZdAxUEFPnP/2y2PG32L0LcddEq7lkJPxCjgLrQm6Zl3zNj",
+      "bytes": 15036,
+      "integrity": "sha384-Dn5tLgVr1lQ6aGNaBLJ1/aZpF0Jr8h90wGOpnE1MdljL+YZUqBeWkAjWx0QIfIiy",
       "source": "plugin-authored (this repo)"
     },
     "motion.min.js": {
@@ -11,6 +11,11 @@
       "integrity": "sha384-hgVFh5YKDMdpcWEjpRqk2kPXOKBH7I9NBCKe3uR6dHKgy/BWPe8kyL01kiYuRn1u",
       "source": "https://cdn.jsdelivr.net/npm/motion@12.43.0/dist/motion.js",
       "upstream_path": "/dist/motion.js"
+    },
+    "motion.css": {
+      "bytes": 643,
+      "integrity": "sha384-yfZM6OaZCXTqD3cFPs2vvMxMH8ZWzeSiY04VwJ79Kj9GIj2IX8CBht7/Avi0OMNr",
+      "source": "plugin-authored (this repo)"
     }
   },
   "homepage": "https://motion.dev",

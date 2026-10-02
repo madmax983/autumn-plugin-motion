@@ -6,6 +6,8 @@
 //! - `GET /__motion/motion.min.js` — the vendored Motion UMD build.
 //! - `GET /__motion/init.js` — the plugin's declarative `data-motion`
 //!   scanner with the htmx re-scan hook.
+//! - `GET /__motion/motion.css` — default styles for
+//!   `Motion::scroll_progress()` (include via `motion_stylesheet()`).
 
 use autumn_web::reexports::axum::Router;
 use autumn_web::reexports::axum::http::{HeaderValue, StatusCode, header};
@@ -33,6 +35,7 @@ where
     Router::new()
         .route("/__motion/motion.min.js", get(serve_motion_js))
         .route("/__motion/init.js", get(serve_init_js))
+        .route("/__motion/motion.css", get(serve_motion_css))
 }
 
 /// Serves the vendored Motion UMD build.
@@ -43,6 +46,34 @@ async fn serve_motion_js() -> Response {
 /// Serves the plugin's declarative init script.
 async fn serve_init_js() -> Response {
     asset_response("init.js")
+}
+
+/// `Content-Type` for the plugin stylesheet.
+const CSS_CONTENT_TYPE: &str = "text/css; charset=utf-8";
+
+/// Serves the plugin stylesheet (default styles for
+/// `Motion::scroll_progress()`).
+async fn serve_motion_css() -> Response {
+    crate::assets::file("motion.css").map_or_else(
+        || StatusCode::NOT_FOUND.into_response(),
+        |bytes| {
+            (
+                StatusCode::OK,
+                [
+                    (
+                        header::CONTENT_TYPE,
+                        HeaderValue::from_static(CSS_CONTENT_TYPE),
+                    ),
+                    (
+                        header::CACHE_CONTROL,
+                        HeaderValue::from_static(CACHE_CONTROL),
+                    ),
+                ],
+                bytes,
+            )
+                .into_response()
+        },
+    )
 }
 
 /// Serves one vendored asset from memory with JS content type and caching.
@@ -135,6 +166,23 @@ mod tests {
         assert!(
             text.contains("prefers-reduced-motion"),
             "init script respects reduced motion"
+        );
+    }
+
+    #[tokio::test]
+    async fn motion_css_serves_with_css_content_type() {
+        let response = get("/__motion/motion.css").await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let content_type = response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .expect("content type is set");
+        assert_eq!(content_type, CSS_CONTENT_TYPE);
+        let body = axum_body_to_bytes(response.into_body()).await;
+        let text = std::str::from_utf8(&body).expect("motion.css is UTF-8");
+        assert!(
+            text.contains(".motion-progress"),
+            "stylesheet styles the progress bar"
         );
     }
 

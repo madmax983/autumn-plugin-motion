@@ -56,8 +56,10 @@ mod plugin;
 mod routes;
 mod script;
 
-pub use assets::{INIT_JS_INTEGRITY, MOTION_JS_INTEGRITY, MOTION_SOURCE, MOTION_VERSION};
+pub use assets::{
+    INIT_JS_INTEGRITY, MOTION_CSS_INTEGRITY, MOTION_JS_INTEGRITY, MOTION_SOURCE, MOTION_VERSION,
+};
 pub use motion::{Ease, InViewAmount, Motion, Preset, RepeatType};
 pub use plugin::{MotionPlugin, PLUGIN_NAME};
 pub use routes::motion_routes;
-pub use script::motion_script;
+pub use script::{motion_script, motion_stylesheet};

@@ -1,8 +1,9 @@
 //! Vendored Motion assets, embedded at compile time.
 //!
 //! The crate vendors the Motion UMD build (`assets/motion.min.js`, pinned in
-//! `assets/manifest.json`) plus the plugin-authored declarative scanner
-//! (`assets/init.js`). Both are served from memory by [`crate::routes`].
+//! `assets/manifest.json`), the plugin-authored declarative scanner
+//! (`assets/init.js`), and the default stylesheet (`assets/motion.css`).
+//! All three are served from memory by [`crate::routes`].
 
 use autumn_web::include_dir;
 use autumn_web::include_dir::Dir;
@@ -29,7 +30,15 @@ pub const MOTION_JS_INTEGRITY: &str =
 /// If `init.js` changes, update this constant (and `assets/manifest.json`);
 /// [`integrity_hashes_match_embedded_bytes`] fails otherwise.
 pub const INIT_JS_INTEGRITY: &str =
-    "sha384-Noz3UaQI3wQieorTfjZdAxUEFPnP/2y2PG32L0LcddEq7lkJPxCjgLrQm6Zl3zNj";
+    "sha384-Dn5tLgVr1lQ6aGNaBLJ1/aZpF0Jr8h90wGOpnE1MdljL+YZUqBeWkAjWx0QIfIiy";
+
+/// `sha384` Subresource Integrity hash of `assets/motion.css`.
+///
+/// If `motion.css` changes, update this constant (and
+/// `assets/manifest.json`); [`integrity_hashes_match_embedded_bytes`] fails
+/// otherwise.
+pub const MOTION_CSS_INTEGRITY: &str =
+    "sha384-yfZM6OaZCXTqD3cFPs2vvMxMH8ZWzeSiY04VwJ79Kj9GIj2IX8CBht7/Avi0OMNr";
 
 /// Raw bytes of a vendored asset, or `None` when the name is unknown.
 pub(crate) fn file(name: &str) -> Option<&'static [u8]> {
@@ -57,6 +66,8 @@ mod tests {
         assert_eq!(sri(motion), MOTION_JS_INTEGRITY);
         let init = file("init.js").expect("init.js is embedded");
         assert_eq!(sri(init), INIT_JS_INTEGRITY);
+        let css = file("motion.css").expect("motion.css is embedded");
+        assert_eq!(sri(css), MOTION_CSS_INTEGRITY);
     }
 
     #[test]
@@ -77,6 +88,10 @@ mod tests {
         assert!(
             manifest.contains(INIT_JS_INTEGRITY),
             "manifest records the init.js integrity"
+        );
+        assert!(
+            manifest.contains(MOTION_CSS_INTEGRITY),
+            "manifest records the motion.css integrity"
         );
     }
 }

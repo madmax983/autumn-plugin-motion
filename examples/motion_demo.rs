@@ -8,14 +8,15 @@
 //!
 //! Then visit <http://127.0.0.1:3000> and:
 //!
-//! - watch the hero cascade in on load (staggered `fade-up`),
+//! - watch the hero cascade in on load (staggered `fade-up`), then scroll
+//!   — the whole hero drifts against you (parallax),
 //! - scroll down to see the cards reveal as they enter the viewport —
-//!   the last one fires early via `data-motion-margin="80px"`,
+//!   the last one fires early via `data-motion-margin="80px"`, and one is
+//!   scrubbed by the scroll position itself,
 //! - smash the "Load more" button — each htmx batch staggers in with no
 //!   extra JavaScript, thanks to the plugin's `htmx:afterSwap` re-scan,
-//! - watch the thin progress bar at the top track page scroll (driven by
-//!   `window.Motion`'s `scroll()`, the plugin's escape hatch for bespoke
-//!   choreography).
+//! - watch the thin progress bar at the top track page scroll
+//!   (`Motion::scroll_progress()` — one line, zero hand-written JS).
 //!
 //! No database, no auth — just Maud, htmx, and Motion. All JS and CSS live
 //! in `static/` (embedded with `embed_static!()` and referenced via
@@ -25,7 +26,7 @@
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use autumn_plugin_motion::{Ease, Motion, MotionPlugin, motion_script};
+use autumn_plugin_motion::{Ease, Motion, MotionPlugin, motion_script, motion_stylesheet};
 use autumn_web::assets::asset_url;
 use autumn_web::{Markup, html};
 
@@ -57,17 +58,17 @@ fn layout(content: &Markup) -> Markup {
                 title { "Motion demo" }
                 link rel="stylesheet" href=(asset_url("css/demo.css"));
                 // The plugin's vendored Motion build + declarative init
-                // script (both defer + SRI-hashed).
+                // script (both defer + SRI-hashed), plus the default
+                // stylesheet for Motion::scroll_progress().
                 (motion_script())
+                (motion_stylesheet())
                 // htmx from the framework's built-in handler — no CDN.
                 script src=(asset_url("js/htmx.min.js")) defer {}
-                // Bespoke choreography via the plugin's escape hatch:
-                // `window.Motion` is the vendored global. Deferred, so it
-                // runs after the plugin scripts above (document order).
-                script src=(asset_url("js/demo.js")) defer {}
             }
             body {
-                div class="progress" {}
+                // Phase 4: the hand-written progress-bar script is gone —
+                // this one line renders the bar and init.js drives it.
+                (Motion::scroll_progress())
                 div class="wrap" { (content) }
             }
         }
@@ -78,20 +79,22 @@ fn layout(content: &Markup) -> Markup {
 async fn index() -> Markup {
     layout(&html! {
         // 1. Entrance: the hero cascades in on load, 130ms apart, on a
-        //    spring — Phase 1 typed easing, straight from Rust.
-        section class="hero" {
-            (Motion::fade_up().stagger(130).ease(Ease::Spring {
-                stiffness: 260.0, damping: 22.0, mass: 1.0,
-            }).wrap(html! {
-                div class="kicker" { "autumn-plugin-motion" }
-                h1 { "Server-rendered HTML," br; "now with choreography." }
-                p {
-                    "This whole page is Maud + htmx. Every animation below \
-                     is declared in Rust — no hand-written animation code \
-                     except one tiny progress-bar script."
-                }
-            }))
-        }
+        //    spring — Phase 1 typed easing, straight from Rust. The whole
+        //    hero also drifts against the scroll (Phase 4 parallax).
+        (Motion::parallax(-0.12).wrap(html! {
+            section class="hero" {
+                (Motion::fade_up().stagger(130).ease(Ease::Spring {
+                    stiffness: 260.0, damping: 22.0, mass: 1.0,
+                }).wrap(html! {
+                    div class="kicker" { "autumn-plugin-motion" }
+                    h1 { "Server-rendered HTML," br; "now with choreography." }
+                    p {
+                        "This whole page is Maud + htmx. Every animation below \
+                         is declared in Rust — no hand-written animation code."
+                    }
+                }))
+            }
+        }))
         // 2. Scroll reveals: each card animates as it enters the viewport.
         section class="cards" {
             div class="card" data-motion="fade-up" {
@@ -102,10 +105,16 @@ async fn index() -> Markup {
                 h2 { "Typed in Rust" }
                 p { "The Motion builder mirrors every attribute, so refactors stay compiler-checked." }
             }
-            div class="card" data-motion="slide-right" data-motion-delay="80" {
-                h2 { "Scroll-aware" }
-                p { "Elements animate when they scroll into view — below the fold waits its turn." }
-            }
+            // Phase 4: scroll-scrubbed — the fade is driven by the scroll
+            // position itself, finishing as the card reaches mid-viewport.
+            (Motion::fade()
+                .scroll_offset(["start end", "center center"])
+                .wrap(html! {
+                    div class="card" {
+                        h2 { "Scroll-scrubbed" }
+                        p { "No trigger here — drag the page and watch this card fade with its own traversal." }
+                    }
+                }))
             div class="card" data-motion="zoom-in" data-motion-delay="80" data-motion-ease="back-out" data-motion-repeat="2" data-motion-repeat-type="mirror" data-motion-margin="80px" {
                 h2 { "Kind by default" }
                 p { "prefers-reduced-motion disables everything; content stays fully visible." }

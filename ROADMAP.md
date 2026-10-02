@@ -79,7 +79,7 @@ Directions and combos Motion keyframes express trivially:
 
 Also fixed while here: the vendored `inView` takes `{ root, margin, amount }` — there is no `once` option, so the `{ once }` object init.js passed was silently ignored (same class of bug as the `easing`→`ease` fix) and `data-motion-once="false"` never re-triggered. Now the callback returns a cleanup when `once` is false, keeping the element observed so it re-animates on every entry; the dead `{ once }` object is gone.
 
-### Phase 4 — Scroll-linked, typed
+### Phase 4 — Scroll-linked, typed ✅ done 2026-10-01
 Today `data-motion-scroll` is boolean-ish and the demo's progress bar is
 hand-written JS. Make scroll a first-class typed concept:
 
@@ -89,6 +89,16 @@ hand-written JS. Make scroll a first-class typed concept:
   → `data-motion-scroll-target`, `data-motion-scroll-offset`, wired to
   Motion's `scroll()` with `target`/`offset`.
 - `.parallax(0.3)` → scroll-linked `y` transform helper for hero art.
+
+Shipped as: `Motion::scroll_progress()` renders
+`<div class="motion-progress" data-motion="scroll-progress">`, styled by the
+new `assets/motion.css` (served at `/__motion/motion.css`, SRI-pinned,
+opt-in via `motion_stylesheet()`); init.js drives `scaleX` 0→1 with page
+scroll. `.scroll_target()`/`.scroll_offset()` imply `.scroll()`; offsets are
+validated in init.js (invalid entries ignored). `.parallax(f)` drifts the
+element `f` × its own height over its viewport traversal (positive lags the
+scroll). Demo: hand `demo.js` progress script deleted, hero wrapped in
+`parallax(-0.12)`, one card scrubbed via `scroll_offset`.
 
 ### Phase 5 — Stagger v2
 `stagger(duration, { start, from, ease })` — we only do flat ms.
