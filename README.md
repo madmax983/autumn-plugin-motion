@@ -164,6 +164,11 @@ Autumn apps:
 | `data-motion-duration` | seconds, e.g. `1.2` | `0.6` | Animation duration. |
 | `data-motion-once` | `false` | _(once)_ | Set to `false` to re-animate every time the element enters the viewport. |
 | `data-motion-stagger` | milliseconds, e.g. `60` | — | On a container: cascade the preset over its direct children. |
+| `data-motion-stagger-from` | `first`, `last`, `center`, `edges`, or a child index, e.g. `2` | `first` | Where the staggered cascade starts. Only applies with `data-motion-stagger`. |
+| `data-motion-stagger-ease` | same syntax as `data-motion-ease` | — | Ease the stagger distribution across children. |
+| `data-motion-hover` | e.g. `scale(1.05) brightness(1.1)` | — | Grow and/or brighten while hovered; eases back on leave. |
+| `data-motion-press` | e.g. `scale(0.95)` | — | Shrink while pressed; releases on pointer up. |
+| `data-motion-reduced` | `animate` | — | Opt back into animation when the user prefers reduced motion. Default: skip animation, content stays fully visible. |
 | `data-motion-scroll` | _(bare attribute)_ | — | Drive the keyframes by scroll progress instead of animating on entry. |
 | `data-motion-scroll-target` | CSS selector, e.g. `#hero` | _(the element itself)_ | Drive the scroll-linked keyframes by another element's traversal. Implies `data-motion-scroll`. |
 | `data-motion-scroll-offset` | comma-separated edges, e.g. `start end,center center` | `start end,end start` | Remap the scroll-linked keyframes onto custom viewport edges. Invalid entries are ignored. |
@@ -182,6 +187,8 @@ all of these: `Motion::fade_up()`, `fade_down()`, `fade_left()`,
 `.ease(Ease::Out)`, `.repeat(n)`, `.repeat_type(RepeatType::Mirror)`,
 `.amount(0.5)` (or `.amount(InViewAmount::All)`), `.margin("-100px")`,
 `.scroll_target("#hero")`, `.scroll_offset(["start end", "center center"])`,
+`.stagger_from(StaggerFrom::Center)`, `.stagger_ease(Ease::Out)`,
+`.hover_scale(1.05)`, `.hover_brightness(1.1)`, `.press_scale(0.97)`,
 `.once(bool)`, `.stagger(ms)`, `.scroll()`, and `.wrap(markup)`.
 `Motion::parallax(0.3)` builds a scroll-drift wrapper and
 `Motion::scroll_progress()` renders the opinionated progress-bar element
@@ -204,8 +211,10 @@ Details:
 - The scanner marks handled elements with `data-motion-init`, so htmx
   re-scans never double-animate.
 - `prefers-reduced-motion: reduce` disables all animations; content stays
-  fully visible. If Motion fails to load, the page is likewise untouched —
-  animations are progressive enhancement, never a dependency.
+  fully visible. A single element can opt back in with
+  `data-motion-reduced="animate"`. If Motion fails to load, the page is
+  likewise untouched — animations are progressive enhancement, never a
+  dependency.
 - Stagger containers animate their *direct children*; don't put
   `data-motion` on the children too.
 

@@ -30,7 +30,7 @@ pub const MOTION_JS_INTEGRITY: &str =
 /// If `init.js` changes, update this constant (and `assets/manifest.json`);
 /// [`integrity_hashes_match_embedded_bytes`] fails otherwise.
 pub const INIT_JS_INTEGRITY: &str =
-    "sha384-Dn5tLgVr1lQ6aGNaBLJ1/aZpF0Jr8h90wGOpnE1MdljL+YZUqBeWkAjWx0QIfIiy";
+    "sha384-dUWEfCOpBgSzbVwX8EAHPbpeWW0lscEnu4hCBuH1F3TM3xPSQXXZqyvPd25+UoC9";
 
 /// `sha384` Subresource Integrity hash of `assets/motion.css`.
 ///

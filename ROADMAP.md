@@ -100,7 +100,7 @@ element `f` × its own height over its viewport traversal (positive lags the
 scroll). Demo: hand `demo.js` progress script deleted, hero wrapped in
 `parallax(-0.12)`, one card scrubbed via `scroll_offset`.
 
-### Phase 5 — Stagger v2
+### Phase 5 — Stagger v2 ✅ done 2026-10-01
 `stagger(duration, { start, from, ease })` — we only do flat ms.
 
 - `.stagger_from(StaggerFrom::Center)` → `data-motion-stagger-from`
@@ -108,20 +108,39 @@ scroll). Demo: hand `demo.js` progress script deleted, hero wrapped in
 - `.stagger_ease(Ease::Out)` → eased distribution across children.
 - Stagger `start` delay folds into existing `delay`.
 
-### Phase 6 — Gestures
+Shipped as: `StaggerFrom::{First, Last, Center, Edges, Index(u32)}`
+(`edges` is a bonus beyond the roadmap — Motion supports it);
+`.stagger_from()` / `.stagger_ease()` are `const fn`; init.js builds
+`{ startDelay, from, ease }` for `M.stagger`, validating `from` and
+reusing the easing parser for the distribution ease.
+
+### Phase 6 — Gestures ✅ done 2026-10-01
 Motion's `hover`/`press` are tiny and high-value for buttons/cards:
 
 - `.hover_scale(1.05)`, `.hover_brightness(1.1)` → `data-motion-hover`
 - `.press_scale(0.95)` → `data-motion-press`
 - `init.js` wires `Motion.hover` / `Motion.press` on these elements.
 
-### Phase 7 — Reduced motion
+Shipped as: `data-motion-hover="scale(1.05) brightness(1.1)"`
+(space-separated function syntax, any subset) and
+`data-motion-press="scale(0.95)"`; init.js parses them defensively
+(positive finite numbers only) and animates in/out via the hover/press
+start→release callback contract. Demo: first card lifts on hover and
+dips on press.
+
+### Phase 7 — Reduced motion ✅ done 2026-10-01
 `prefersReducedMotion` exists upstream; we ignore it.
 
 - `init.js` checks `matchMedia("(prefers-reduced-motion: reduce)")` and
   skips animation (show final state) unless
   `data-motion-reduced="animate"` opts back in.
 - Zero Rust API needed beyond the opt-out attribute; document it.
+
+Shipped as: the guard already existed (`initIn` bailed when the media
+query matched); now it's per-element — reduced-motion users get static
+content unless an element carries `data-motion-reduced="animate"`.
+Unclaimed elements stay unmarked so later scans can still pick them up.
+Documented in the module docs, README attribute table, and gotchas.
 
 ### Phase 8 — Escape hatches (only if phases 1–7 leave real gaps)
 - `Motion::custom(keyframes_json)` — typed-ish raw keyframes for the

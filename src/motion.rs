@@ -43,6 +43,17 @@
 //! - `data-motion-scroll-offset="start end,center center"` — comma-separated
 //!   scroll offsets mapping target/container edges (default
 //!   `"start end,end start"`). Invalid entries are ignored.
+//! - `data-motion-reduced="animate"` — opt back into animation when the
+//!   user prefers reduced motion (default: skip animation, content stays
+//!   fully visible).
+//! - `data-motion-stagger-from="first|last|center|edges|2"` — where a
+//!   staggered cascade starts (default `first`). Only applies with
+//!   `data-motion-stagger`.
+//! - `data-motion-stagger-ease="ease-out"` — ease the stagger distribution
+//!   across children (same value syntax as `data-motion-ease`).
+//! - `data-motion-hover="scale(1.05) brightness(1.1)"` — grow and/or
+//!   brighten on hover (any subset).
+//! - `data-motion-press="scale(0.95)"` — shrink while pressed.
 
 use autumn_web::{Markup, html};
 
@@ -189,6 +200,37 @@ impl From<f32> for InViewAmount {
     }
 }
 
+/// Where a staggered cascade starts.
+///
+/// Serializes to `data-motion-stagger-from`; mirrors Motion's `stagger`
+/// `from` option (`"first" | "last" | "center" | "edges" | index`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StaggerFrom {
+    /// From the first child (default).
+    First,
+    /// From the last child.
+    Last,
+    /// From the middle outward.
+    Center,
+    /// From the edges inward.
+    Edges,
+    /// From the child at this index.
+    Index(u32),
+}
+
+impl StaggerFrom {
+    /// The `data-motion-stagger-from` attribute value.
+    fn attr_value(self) -> String {
+        match self {
+            Self::First => "first".to_string(),
+            Self::Last => "last".to_string(),
+            Self::Center => "center".to_string(),
+            Self::Edges => "edges".to_string(),
+            Self::Index(i) => i.to_string(),
+        }
+    }
+}
+
 /// An animation preset, mirroring the keyframes in `assets/init.js`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Preset {
@@ -276,6 +318,11 @@ pub struct Motion {
     scroll_target: Option<String>,
     scroll_offset: Option<[String; 2]>,
     parallax_factor: Option<f32>,
+    stagger_from: Option<StaggerFrom>,
+    stagger_ease: Option<Ease>,
+    hover_scale: Option<f32>,
+    hover_brightness: Option<f32>,
+    press_scale: Option<f32>,
     once: bool,
     stagger_ms: Option<u32>,
     scroll: bool,
@@ -430,6 +477,11 @@ impl Motion {
             scroll_target: None,
             scroll_offset: None,
             parallax_factor: None,
+            stagger_from: None,
+            stagger_ease: None,
+            hover_scale: None,
+            hover_brightness: None,
+            press_scale: None,
             once: true,
             stagger_ms: None,
             scroll: false,
@@ -549,6 +601,39 @@ impl Motion {
         self
     }
 
+    /// Where the staggered cascade starts: [`StaggerFrom::First`] (default),
+    /// [`StaggerFrom::Last`], [`StaggerFrom::Center`],
+    /// [`StaggerFrom::Edges`], or [`StaggerFrom::Index`]. Only applies with
+    /// [`.stagger(ms)`](Motion::stagger).
+    ///
+    /// ```rust
+    /// use autumn_plugin_motion::{Motion, StaggerFrom};
+    /// use autumn_web::{Markup, html};
+    ///
+    /// let html: Markup = Motion::fade_up()
+    ///     .stagger(90)
+    ///     .stagger_from(StaggerFrom::Center)
+    ///     .wrap(html! { p { "Hi" } });
+    /// assert!(
+    ///     html.into_string().contains(r#"data-motion-stagger-from="center""#)
+    /// );
+    /// ```
+    #[must_use]
+    pub const fn stagger_from(mut self, from: StaggerFrom) -> Self {
+        self.stagger_from = Some(from);
+        self
+    }
+
+    /// Ease the stagger distribution across children — e.g. [`Ease::Out`]
+    /// bunches later children together. Same value syntax as
+    /// [`.ease()`](Motion::ease); only applies with
+    /// [`.stagger(ms)`](Motion::stagger).
+    #[must_use]
+    pub const fn stagger_ease(mut self, ease: Ease) -> Self {
+        self.stagger_ease = Some(ease);
+        self
+    }
+
     /// Drive the keyframes by scroll progress as the element travels through
     /// the viewport, instead of animating on entry.
     #[must_use]
@@ -611,6 +696,53 @@ impl Motion {
         self
     }
 
+    /// Grow to `scale` while hovered (e.g. `1.05` for a subtle lift).
+    /// The element eases back on pointer leave. Pairs with entrance
+    /// presets; combines with [`Motion::hover_brightness`].
+    ///
+    /// ```rust
+    /// use autumn_plugin_motion::Motion;
+    /// use autumn_web::{Markup, html};
+    ///
+    /// let html: Markup = Motion::fade_up()
+    ///     .hover_scale(1.05)
+    ///     .hover_brightness(1.1)
+    ///     .wrap(html! { p { "Hi" } });
+    /// let s = html.into_string();
+    /// assert!(s.contains(r#"data-motion-hover="scale(1.05) brightness(1.1)""#), "{s}");
+    /// ```
+    #[must_use]
+    pub const fn hover_scale(mut self, scale: f32) -> Self {
+        self.hover_scale = Some(scale);
+        self
+    }
+
+    /// Brighten to `brightness` while hovered (e.g. `1.1`). Combines with
+    /// [`Motion::hover_scale`].
+    #[must_use]
+    pub const fn hover_brightness(mut self, brightness: f32) -> Self {
+        self.hover_brightness = Some(brightness);
+        self
+    }
+
+    /// Shrink to `scale` while pressed (e.g. `0.97` for a tactile button).
+    /// Releases back on pointer up.
+    ///
+    /// ```rust
+    /// use autumn_plugin_motion::Motion;
+    /// use autumn_web::{Markup, html};
+    ///
+    /// let html: Markup = Motion::fade_up().press_scale(0.97).wrap(html! { p { "Hi" } });
+    /// assert!(
+    ///     html.into_string().contains(r#"data-motion-press="scale(0.97)""#)
+    /// );
+    /// ```
+    #[must_use]
+    pub const fn press_scale(mut self, scale: f32) -> Self {
+        self.press_scale = Some(scale);
+        self
+    }
+
     /// Wraps `markup` in a `<div>` carrying the animation attributes.
     ///
     /// This is the Maud-friendly composition path — no attribute splicing,
@@ -647,6 +779,17 @@ impl Motion {
         let scroll_target = self.scroll_target;
         let scroll_offset = self.scroll_offset.map(|[a, b]| format!("{a},{b}"));
         let parallax = self.parallax_factor.map(|f| format!("{f}"));
+        let stagger_from = self.stagger_from.map(StaggerFrom::attr_value);
+        let stagger_ease = self.stagger_ease.map(Ease::attr_value);
+        let mut hover_parts = Vec::new();
+        if let Some(scale) = self.hover_scale {
+            hover_parts.push(format!("scale({scale})"));
+        }
+        if let Some(brightness) = self.hover_brightness {
+            hover_parts.push(format!("brightness({brightness})"));
+        }
+        let hover = (!hover_parts.is_empty()).then(|| hover_parts.join(" "));
+        let press = self.press_scale.map(|scale| format!("scale({scale})"));
         html! {
             div data-motion=(preset)
                 data-motion-delay=[delay.as_deref()]
@@ -659,6 +802,10 @@ impl Motion {
                 data-motion-parallax=[parallax.as_deref()]
                 data-motion-scroll-target=[scroll_target.as_deref()]
                 data-motion-scroll-offset=[scroll_offset.as_deref()]
+                data-motion-stagger-from=[stagger_from.as_deref()]
+                data-motion-stagger-ease=[stagger_ease.as_deref()]
+                data-motion-hover=[hover.as_deref()]
+                data-motion-press=[press.as_deref()]
                 data-motion-once=[once]
                 data-motion-stagger=[stagger.as_deref()]
                 data-motion-scroll[scroll]
@@ -718,6 +865,10 @@ mod tests {
             "data-motion-parallax",
             "data-motion-scroll-target",
             "data-motion-scroll-offset",
+            "data-motion-stagger-from",
+            "data-motion-stagger-ease",
+            "data-motion-hover",
+            "data-motion-press",
             "data-motion-once",
             "data-motion-stagger",
             "data-motion-scroll",
@@ -841,6 +992,49 @@ mod tests {
         let html = Motion::scroll_progress().into_string();
         assert!(html.contains(r#"data-motion="scroll-progress""#), "{html}");
         assert!(html.contains(r#"class="motion-progress""#), "{html}");
+    }
+
+    #[test]
+    fn stagger_from_and_ease_render() {
+        let html = render(
+            Motion::fade_up()
+                .stagger(90)
+                .stagger_from(StaggerFrom::Center)
+                .stagger_ease(Ease::Out),
+        );
+        assert!(html.contains(r#"data-motion-stagger="90""#), "{html}");
+        assert!(
+            html.contains(r#"data-motion-stagger-from="center""#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"data-motion-stagger-ease="ease-out""#),
+            "{html}"
+        );
+    }
+
+    #[test]
+    fn stagger_from_index_renders_number() {
+        let html = render(Motion::fade_up().stagger_from(StaggerFrom::Index(2)));
+        assert!(html.contains(r#"data-motion-stagger-from="2""#), "{html}");
+    }
+
+    #[test]
+    fn hover_and_press_render() {
+        let html = render(
+            Motion::fade_up()
+                .hover_scale(1.05)
+                .hover_brightness(1.1)
+                .press_scale(0.97),
+        );
+        assert!(
+            html.contains(r#"data-motion-hover="scale(1.05) brightness(1.1)""#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"data-motion-press="scale(0.97)""#),
+            "{html}"
+        );
     }
 
     #[test]

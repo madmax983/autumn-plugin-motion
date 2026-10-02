@@ -8,11 +8,13 @@
 //!
 //! Then visit <http://127.0.0.1:3000> and:
 //!
-//! - watch the hero cascade in on load (staggered `fade-up`), then scroll
-//!   — the whole hero drifts against you (parallax),
+//! - watch the hero cascade in on load (staggered `fade-up` from the
+//!   center, eased distribution), then scroll — the whole hero drifts
+//!   against you (parallax),
 //! - scroll down to see the cards reveal as they enter the viewport —
-//!   the last one fires early via `data-motion-margin="80px"`, and one is
-//!   scrubbed by the scroll position itself,
+//!   the last one fires early via `data-motion-margin="80px"`, one is
+//!   scrubbed by the scroll position itself, and the first lifts under
+//!   your cursor (hover/press gestures),
 //! - smash the "Load more" button — each htmx batch staggers in with no
 //!   extra JavaScript, thanks to the plugin's `htmx:afterSwap` re-scan,
 //! - watch the thin progress bar at the top track page scroll
@@ -26,7 +28,9 @@
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use autumn_plugin_motion::{Ease, Motion, MotionPlugin, motion_script, motion_stylesheet};
+use autumn_plugin_motion::{
+    Ease, Motion, MotionPlugin, StaggerFrom, motion_script, motion_stylesheet,
+};
 use autumn_web::assets::asset_url;
 use autumn_web::{Markup, html};
 
@@ -79,11 +83,12 @@ fn layout(content: &Markup) -> Markup {
 async fn index() -> Markup {
     layout(&html! {
         // 1. Entrance: the hero cascades in on load, 130ms apart, on a
-        //    spring — Phase 1 typed easing, straight from Rust. The whole
-        //    hero also drifts against the scroll (Phase 4 parallax).
+        //    spring — Phase 1 typed easing, straight from Rust. The cascade
+        //    starts at the center with an eased distribution (Phase 5), and
+        //    the whole hero also drifts against the scroll (Phase 4 parallax).
         (Motion::parallax(-0.12).wrap(html! {
             section class="hero" {
-                (Motion::fade_up().stagger(130).ease(Ease::Spring {
+                (Motion::fade_up().stagger(130).stagger_from(StaggerFrom::Center).stagger_ease(Ease::Out).ease(Ease::Spring {
                     stiffness: 260.0, damping: 22.0, mass: 1.0,
                 }).wrap(html! {
                     div class="kicker" { "autumn-plugin-motion" }
@@ -97,9 +102,9 @@ async fn index() -> Markup {
         }))
         // 2. Scroll reveals: each card animates as it enters the viewport.
         section class="cards" {
-            div class="card" data-motion="fade-up" {
+            div class="card" data-motion="fade-up" data-motion-hover="scale(1.03)" data-motion-press="scale(0.97)" {
                 h2 { "Declarative" }
-                p { "data-motion attributes describe the animation; the plugin's init script does the rest." }
+                p { "data-motion attributes describe the animation; the plugin's init script does the rest. Hover and press this card — gestures are declarative too." }
             }
             div class="card" data-motion="slide-left" data-motion-delay="80" {
                 h2 { "Typed in Rust" }

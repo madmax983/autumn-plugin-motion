@@ -95,10 +95,12 @@
     // Accepts kebab-case names ("ease-out"), "cubic-bezier(a,b,c,d)", and
     // "spring(stiffness,damping,mass)". Unknown values fall back to the
     // default easing.
-    function readEase(el) {
-        var raw = el.getAttribute("data-motion-ease");
+    // Parses an easing attribute value into a Motion easing definition
+    // (bezier array, spring object, or named easing), or null when absent
+    // or invalid. Shared by `data-motion-ease` and `data-motion-stagger-ease`.
+    function parseEaseValue(raw) {
         if (!raw) {
-            return { ease: DEFAULT_EASING };
+            return null;
         }
         var m = raw.match(/^cubic-bezier\(([^)]+)\)$/);
         if (m) {
@@ -109,9 +111,9 @@
                     return isFinite(n);
                 })
             ) {
-                return { ease: curve };
+                return curve;
             }
-            return { ease: DEFAULT_EASING };
+            return null;
         }
         m = raw.match(/^spring\(([^)]+)\)$/);
         if (m) {
@@ -129,14 +131,24 @@
                     mass: s[2],
                 };
             }
-            return { ease: DEFAULT_EASING };
+            return null;
         }
         if (
             Object.prototype.hasOwnProperty.call(NAMED_EASINGS, raw)
         ) {
-            return { ease: NAMED_EASINGS[raw] };
+            return NAMED_EASINGS[raw];
         }
-        return { ease: DEFAULT_EASING };
+        return null;
+    }
+
+    function readEase(el) {
+        var value = parseEaseValue(el.getAttribute("data-motion-ease"));
+        // Springs are transition-shaped already; everything else goes
+        // through the `ease` key.
+        if (value && value.type === "spring") {
+            return value;
+        }
+        return { ease: value || DEFAULT_EASING };
     }
 
     var REPEAT_TYPES = { loop: true, reverse: true, mirror: true };
@@ -228,6 +240,83 @@
         };
     }
 
+    var STAGGER_FROM_WORDS = { first: 1, last: 1, center: 1, edges: 1 };
+
+    // Builds the options for Motion's stagger(): origin (`from`) and eased
+    // distribution (`ease`), both validated so typos fall back to defaults.
+    function staggerOptions(el, startDelay) {
+        var opts = { startDelay: startDelay };
+        var from = (el.getAttribute("data-motion-stagger-from") || "").trim();
+        if (STAGGER_FROM_WORDS[from]) {
+            opts.from = from;
+        } else if (/^\d+$/.test(from)) {
+            opts.from = parseInt(from, 10);
+        }
+        var ease = parseEaseValue(
+            el.getAttribute("data-motion-stagger-ease"),
+        );
+        if (ease) {
+            opts.ease = ease;
+        }
+        return opts;
+    }
+
+    // Gesture wiring (Phase 6): `data-motion-hover="scale(1.05)
+    // brightness(1.1)"` and `data-motion-press="scale(0.95)"`, via Motion's
+    // hover()/press(). The start callback returns the release callback.
+    var GESTURE_RE = /(scale|brightness)\(\s*([0-9.]+)\s*\)/g;
+
+    function readGesture(raw) {
+        var out = {};
+        var m;
+        GESTURE_RE.lastIndex = 0;
+        while ((m = GESTURE_RE.exec(raw || "")) !== null) {
+            var v = parseFloat(m[2]);
+            if (isFinite(v) && v > 0) {
+                out[m[1]] = v;
+            }
+        }
+        return out;
+    }
+
+    function gestureKeyframes(g, resting) {
+        var kf = {};
+        if (g.scale) {
+            kf.scale = resting ? 1 : g.scale;
+        }
+        if (g.brightness) {
+            kf.filter = resting
+                ? "brightness(1)"
+                : "brightness(" + g.brightness + ")";
+        }
+        return kf;
+    }
+
+    function wireGestures(M, el) {
+        var hover = readGesture(el.getAttribute("data-motion-hover"));
+        if (hover.scale || hover.brightness) {
+            M.hover(el, function () {
+                M.animate(el, gestureKeyframes(hover, false), {
+                    duration: 0.2,
+                });
+                return function () {
+                    M.animate(el, gestureKeyframes(hover, true), {
+                        duration: 0.25,
+                    });
+                };
+            });
+        }
+        var press = readGesture(el.getAttribute("data-motion-press"));
+        if (press.scale) {
+            M.press(el, function () {
+                M.animate(el, { scale: press.scale }, { duration: 0.12 });
+                return function () {
+                    M.animate(el, { scale: 1 }, { duration: 0.2 });
+                };
+            });
+        }
+    }
+
     function readOpts(el) {
         var delayMs = parseInt(el.getAttribute("data-motion-delay") || "0", 10);
         var duration = parseFloat(el.getAttribute("data-motion-duration") || "");
@@ -278,6 +367,9 @@
             );
             return;
         }
+
+        // Gestures are orthogonal to the entrance/scroll animation.
+        wireGestures(M, el);
 
         var keyframes = PRESETS[kind] || PRESETS["fade-up"];
         // NOTE: Motion's transition option is `ease`, not `easing` — the
@@ -335,7 +427,10 @@
                         kids,
                         keyframes,
                         Object.assign({}, timing, {
-                            delay: M.stagger(step, { startDelay: opts.delay }),
+                            delay: M.stagger(
+                                step,
+                                staggerOptions(el, opts.delay),
+                            ),
                         }),
                     );
                     // Returning a cleanup keeps the element observed, so the
@@ -369,9 +464,14 @@
     // the document or an htmx swap target.
     function initIn(root) {
         var M = motion();
-        if (!M || reducedMotion()) {
+        if (!M) {
             return;
         }
+        // Reduced motion is per-element: skip the animation (leaving the
+        // element fully visible) unless it opts back in with
+        // data-motion-reduced="animate". Unclaimed elements stay unmarked so
+        // a later scan can still pick them up.
+        var reduce = reducedMotion();
         var scope = root && root.querySelectorAll ? root : document;
         var els = [];
         if (
@@ -386,6 +486,12 @@
             els.push(found[i]);
         }
         els.forEach(function (el) {
+            if (
+                reduce &&
+                el.getAttribute("data-motion-reduced") !== "animate"
+            ) {
+                return;
+            }
             el.setAttribute("data-motion-init", "true");
             var stagger = el.hasAttribute("data-motion-stagger");
             if (!stagger) {
