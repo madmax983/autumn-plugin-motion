@@ -1,27 +1,17 @@
 {
   "files": {
-    "init.js": {
-      "bytes": 18684,
-      "integrity": "sha384-dUWEfCOpBgSzbVwX8EAHPbpeWW0lscEnu4hCBuH1F3TM3xPSQXXZqyvPd25+UoC9",
-      "source": "plugin-authored (this repo)"
-    },
     "motion.min.js": {
       "bytes": 139606,
       "format": "UMD (sets window.Motion)",
       "integrity": "sha384-hgVFh5YKDMdpcWEjpRqk2kPXOKBH7I9NBCKe3uR6dHKgy/BWPe8kyL01kiYuRn1u",
       "source": "https://cdn.jsdelivr.net/npm/motion@12.43.0/dist/motion.js",
       "upstream_path": "/dist/motion.js"
-    },
-    "motion.css": {
-      "bytes": 643,
-      "integrity": "sha384-yfZM6OaZCXTqD3cFPs2vvMxMH8ZWzeSiY04VwJ79Kj9GIj2IX8CBht7/Avi0OMNr",
-      "source": "plugin-authored (this repo)"
     }
   },
   "homepage": "https://motion.dev",
   "library": "motion",
   "license": "MIT",
-  "notes": "motion.min.js is the upstream minified UMD build, renamed from dist/motion.js. init.js is the plugin's declarative data-motion scanner; update its integrity hash here and in src/assets.rs if it changes.",
+  "notes": "motion.min.js is the upstream minified UMD build, renamed from dist/motion.js; its integrity here (and MOTION_JS_INTEGRITY in src/assets.rs) pins the exact upstream bytes. init.js and motion.css are plugin-authored; their URLs and SRI hashes are computed at runtime by autumn-web's PluginAssets bundle, so they are not pinned here. This file is vendoring provenance only and is not served.",
   "pinned": "latest 12.x as of 2026-10-01",
   "version": "12.43.0"
 }

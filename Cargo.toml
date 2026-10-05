@@ -1,6 +1,6 @@
 [package]
 name = "autumn-plugin-motion"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.88"
 description = "Autumn plugin: Motion (motion.dev) animations with Maud + htmx ergonomics."
@@ -15,18 +15,21 @@ default = []
 
 [dependencies]
 # No default features: the host app selects the Autumn features.
-# The `maud` feature is on because the plugin ships Maud helpers.
-autumn-web = { version = ">=0.7, <0.8", default-features = false, features = ["maud", "embed-assets"] }
+# The `maud` feature is on because the plugin ships Maud helpers. The asset
+# bundle is built with `PluginAssets::from_files` + `include_bytes!`, so the
+# plugin does not force `embed-assets` on the host.
+autumn-web = { version = "0.8", default-features = false, features = ["maud"] }
 # Direct dependency: the `html!` macro expands to `maud::` paths, so the
 # crate must be resolvable by name in this crate too.
 maud = "0.27"
 
 [dev-dependencies]
-# The `htmx` feature is enabled here (not in [dependencies]) so the demo
-# example can use the framework's built-in htmx handler. Feature
-# unification turns it on for example/test builds only; downstream users
+# The `htmx` and `embed-assets` features are enabled here (not in
+# [dependencies]) so the demo example can use the framework's built-in htmx
+# handler and `embed_static!()` for its own `static/` dir. Feature
+# unification turns them on for example/test builds only; downstream users
 # of the plugin are unaffected.
-autumn-web = { version = ">=0.7, <0.8", default-features = false, features = ["maud", "embed-assets", "htmx"] }
+autumn-web = { version = "0.8", default-features = false, features = ["maud", "embed-assets", "htmx"] }
 base64 = "0.22"
 sha2 = "0.10"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

@@ -5,8 +5,8 @@
  *
  *     (motion_stylesheet())
  *
- * Served from memory at `/__motion/motion.css`; SRI-pinned in
- * `src/assets.rs` and `assets/manifest.json` like the scripts.
+ * Served from memory under `/static/_plugins/motion/` at a content-hashed
+ * URL; `motion_stylesheet()` emits that URL with its SRI hash.
  */
 .motion-progress {
     position: fixed;

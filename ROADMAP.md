@@ -21,6 +21,23 @@ Modifiers: `delay`, `duration`, `once`, `stagger`, `scroll`, `wrap`.
 Attributes: `data-motion`, `data-motion-delay`, `data-motion-duration`,
 `data-motion-once`, `data-motion-stagger`, `data-motion-scroll`.
 
+## Autumn 0.8 / plugin 0.2.0 ✅ done 2026-10-05
+
+autumn-web 0.8.0 shipped the plugin asset seam (`PluginAssets` +
+`AppBuilder::plugin_assets`), closing the "no plugin asset-overlay seam"
+gap that forced the hand-rolled `/__motion/*` router.
+
+- `MOTION_ASSETS` (`PluginAssets::from_files("motion", …)`) bundles
+  `motion.min.js`, `init.js`, `motion.css`; `MotionPlugin::build` is now
+  `app.plugin_assets(&MOTION_ASSETS)`.
+- URLs moved to `/static/_plugins/motion/<name>.<hash>.<ext>` (immutable,
+  ETag/304, Range); `motion_script()`/`motion_stylesheet()` use the
+  bundle's tag helpers, so SRI is computed, not hand-kept.
+- Removed: `motion_routes()`, `INIT_JS_INTEGRITY`, `MOTION_CSS_INTEGRITY`.
+  `MOTION_JS_INTEGRITY` remains as the upstream provenance pin.
+- Dropped the forced `embed-assets` feature on autumn-web.
+- Decision record: `docs/adr/0001-plugin-assets-seam.md`.
+
 ## The upstream surface (dist/motion.js exports, 283 total)
 
 Public vanilla API worth covering, grouped:

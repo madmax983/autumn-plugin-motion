@@ -450,7 +450,7 @@ impl Motion {
     /// use autumn_web::{Markup, html};
     ///
     /// let head: Markup = html! { (motion_stylesheet()) };
-    /// assert!(head.into_string().contains("/__motion/motion.css"));
+    /// assert!(head.into_string().contains("/static/_plugins/motion/motion."));
     /// let bar: Markup = Motion::scroll_progress();
     /// let s = bar.into_string();
     /// assert!(s.contains(r#"data-motion="scroll-progress""#), "{s}");

@@ -34,7 +34,10 @@
 //! ```
 //!
 //! The plugin vendors [Motion](https://motion.dev) 12.x (MIT) — no npm, no
-//! bundler — and serves it from memory at `/__motion/*`. The init script
+//! bundler — and installs it as an Autumn plugin asset bundle
+//! ([`MOTION_ASSETS`]), served from memory under `/static/_plugins/motion/`
+//! at content-hashed, immutably cached URLs with SRI hashes computed from the
+//! embedded bytes. The init script
 //! scans `[data-motion]` on load and re-scans on `htmx:afterSwap`, so every
 //! htmx partial animates declaratively too. `prefers-reduced-motion` is
 //! respected: no animations, content stays visible.
@@ -53,13 +56,11 @@
 mod assets;
 mod motion;
 mod plugin;
-mod routes;
 mod script;
 
 pub use assets::{
-    INIT_JS_INTEGRITY, MOTION_CSS_INTEGRITY, MOTION_JS_INTEGRITY, MOTION_SOURCE, MOTION_VERSION,
+    ASSETS_NAMESPACE, MOTION_ASSETS, MOTION_JS_INTEGRITY, MOTION_SOURCE, MOTION_VERSION,
 };
 pub use motion::{Ease, InViewAmount, Motion, Preset, RepeatType, StaggerFrom};
 pub use plugin::{MotionPlugin, PLUGIN_NAME};
-pub use routes::motion_routes;
 pub use script::{motion_script, motion_stylesheet};
