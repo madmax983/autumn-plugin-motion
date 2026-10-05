@@ -1,12 +1,14 @@
 //! [`motion_script()`]: the `<script>` tags for the vendored Motion build.
 //!
 //! Put it in the page `<head>` (or at the end of `<body>`); the scripts are
-//! `defer`red so they run after parsing. Both tags carry Subresource
-//! Integrity hashes pinned in [`crate::assets`].
+//! `defer`red so they run after parsing, in document order (Motion first,
+//! then the init script). Every tag points at the content-hashed URL from
+//! [`MOTION_ASSETS`] and carries the Subresource Integrity hash the bundle
+//! computes from the embedded bytes.
 
 use autumn_web::{Markup, html};
 
-use crate::assets::{INIT_JS_INTEGRITY, MOTION_CSS_INTEGRITY, MOTION_JS_INTEGRITY};
+use crate::assets::{INIT_JS, MOTION_ASSETS, MOTION_CSS, MOTION_JS};
 
 /// Renders the `<script>` tags loading Motion and the plugin init script.
 ///
@@ -19,19 +21,13 @@ use crate::assets::{INIT_JS_INTEGRITY, MOTION_CSS_INTEGRITY, MOTION_JS_INTEGRITY
 ///         (motion_script())
 ///     }
 /// };
-/// assert!(head.into_string().contains("/__motion/motion.min.js"));
+/// assert!(head.into_string().contains("/static/_plugins/motion/motion.min."));
 /// ```
 #[must_use]
 pub fn motion_script() -> Markup {
     html! {
-        script src="/__motion/motion.min.js"
-            integrity=(MOTION_JS_INTEGRITY)
-            crossorigin="anonymous"
-            defer {}
-        script src="/__motion/init.js"
-            integrity=(INIT_JS_INTEGRITY)
-            crossorigin="anonymous"
-            defer {}
+        (MOTION_ASSETS.deferred_script_tag(MOTION_JS))
+        (MOTION_ASSETS.deferred_script_tag(INIT_JS))
     }
 }
 
@@ -44,34 +40,70 @@ pub fn motion_script() -> Markup {
 /// use autumn_plugin_motion::motion_stylesheet;
 ///
 /// let html = motion_stylesheet().into_string();
-/// assert!(html.contains(r#"href="/__motion/motion.css""#), "{html}");
+/// assert!(html.contains(r#"href="/static/_plugins/motion/motion."#), "{html}");
 /// ```
 #[must_use]
 pub fn motion_stylesheet() -> Markup {
-    html! {
-        link rel="stylesheet" href="/__motion/motion.css"
-            integrity=(MOTION_CSS_INTEGRITY)
-            crossorigin="anonymous";
-    }
+    MOTION_ASSETS.stylesheet_tag(MOTION_CSS)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// The bundle entry for `path` (test helper).
+    fn asset(path: &str) -> &'static autumn_web::assets::PluginAsset {
+        MOTION_ASSETS.get(path).expect("file is bundled")
+    }
+
     #[test]
-    fn script_tags_carry_sri_and_namespaced_paths() {
+    fn script_tags_carry_sri_and_fingerprinted_urls() {
         let html = motion_script().into_string();
-        assert!(html.contains(r#"src="/__motion/motion.min.js""#), "{html}");
-        assert!(html.contains(r#"src="/__motion/init.js""#), "{html}");
+        let motion = asset(MOTION_JS);
+        let init = asset(INIT_JS);
         assert!(
-            html.contains(&format!(r#"integrity="{MOTION_JS_INTEGRITY}""#)),
+            html.contains(&format!(r#"src="{}""#, motion.url())),
+            "{html}"
+        );
+        assert!(html.contains(&format!(r#"src="{}""#, init.url())), "{html}");
+        assert!(
+            html.contains(&format!(r#"integrity="{}""#, motion.integrity())),
             "motion script tag carries the SRI hash: {html}"
         );
         assert!(
-            html.contains(&format!(r#"integrity="{INIT_JS_INTEGRITY}""#)),
+            html.contains(&format!(r#"integrity="{}""#, init.integrity())),
             "init script tag carries the SRI hash: {html}"
         );
-        assert!(html.contains("defer"), "{html}");
+        assert_eq!(html.matches("defer").count(), 2, "{html}");
+        assert_eq!(
+            html.matches(r#"crossorigin="anonymous""#).count(),
+            2,
+            "{html}"
+        );
+        assert!(!html.contains("not found"), "{html}");
+    }
+
+    #[test]
+    fn motion_loads_before_the_init_script() {
+        let html = motion_script().into_string();
+        let motion_at = html.find(asset(MOTION_JS).url()).expect("motion tag");
+        let init_at = html.find(asset(INIT_JS).url()).expect("init tag");
+        assert!(
+            motion_at < init_at,
+            "deferred scripts run in order; init.js needs window.Motion: {html}"
+        );
+    }
+
+    #[test]
+    fn stylesheet_link_carries_sri_and_fingerprinted_url() {
+        let html = motion_stylesheet().into_string();
+        let css = asset(MOTION_CSS);
+        assert!(html.contains(r#"rel="stylesheet""#), "{html}");
+        assert!(html.contains(&format!(r#"href="{}""#, css.url())), "{html}");
+        assert!(
+            html.contains(&format!(r#"integrity="{}""#, css.integrity())),
+            "{html}"
+        );
+        assert!(html.contains(r#"crossorigin="anonymous""#), "{html}");
     }
 }

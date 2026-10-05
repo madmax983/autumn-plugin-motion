@@ -3,17 +3,58 @@
 //! The crate vendors the Motion UMD build (`assets/motion.min.js`, pinned in
 //! `assets/manifest.json`), the plugin-authored declarative scanner
 //! (`assets/init.js`), and the default stylesheet (`assets/motion.css`).
-//! All three are served from memory by [`crate::routes`].
+//!
+//! All three form the [`MOTION_ASSETS`] bundle, which
+//! [`MotionPlugin`](crate::MotionPlugin) installs through Autumn's
+//! `AppBuilder::plugin_assets` seam. The framework serves each file under
+//! `/static/_plugins/motion/` at a content-hashed URL (`immutable` for a
+//! year) and at its plain URL (`must-revalidate`), with `ETag`/`304` and
+//! `Range` support, and computes each file's `sha384` Subresource Integrity
+//! hash from the embedded bytes, so nothing here keeps hashes by hand.
+//!
+//! The bundle lists its files explicitly instead of embedding the whole
+//! `assets/` directory, so `manifest.json` (vendoring provenance) is never
+//! served.
 
-use autumn_web::include_dir;
-use autumn_web::include_dir::Dir;
+use autumn_web::assets::PluginAssets;
 
-/// The embedded `assets/` directory.
+/// URL namespace of the bundle: files are served under
+/// `/static/_plugins/motion/`.
+pub const ASSETS_NAMESPACE: &str = "motion";
+
+/// Logical path of the vendored Motion UMD build inside [`MOTION_ASSETS`].
+pub(crate) const MOTION_JS: &str = "motion.min.js";
+
+/// Logical path of the declarative init script inside [`MOTION_ASSETS`].
+pub(crate) const INIT_JS: &str = "init.js";
+
+/// Logical path of the default stylesheet inside [`MOTION_ASSETS`].
+pub(crate) const MOTION_CSS: &str = "motion.css";
+
+/// The plugin's asset bundle: Motion, the init script, and the stylesheet.
 ///
-/// The `include_dir` module import stays under that name because the
-/// `include_dir!` expansion references it, mirroring
-/// `autumn_web::embed_static!`.
-pub(crate) static ASSETS: Dir<'static> = include_dir::include_dir!("$CARGO_MANIFEST_DIR/assets");
+/// [`MotionPlugin`](crate::MotionPlugin) installs it; you only need it
+/// directly to build URLs or tags yourself:
+///
+/// ```rust
+/// use autumn_plugin_motion::MOTION_ASSETS;
+///
+/// let url = MOTION_ASSETS.url("init.js");
+/// assert!(url.starts_with("/static/_plugins/motion/init."), "{url}");
+/// let sri = MOTION_ASSETS.integrity("init.js").expect("init.js is bundled");
+/// assert!(sri.starts_with("sha384-"));
+/// ```
+///
+/// Once the plugin is installed, templates can also resolve the hashed URL
+/// with `autumn_web::assets::asset_url("_plugins/motion/init.js")`.
+pub static MOTION_ASSETS: PluginAssets = PluginAssets::from_files(
+    ASSETS_NAMESPACE,
+    &[
+        (MOTION_JS, include_bytes!("../assets/motion.min.js")),
+        (INIT_JS, include_bytes!("../assets/init.js")),
+        (MOTION_CSS, include_bytes!("../assets/motion.css")),
+    ],
+);
 
 /// Pinned Motion version vendored in `assets/motion.min.js`.
 pub const MOTION_VERSION: &str = "12.43.0";
@@ -21,29 +62,14 @@ pub const MOTION_VERSION: &str = "12.43.0";
 /// jsDelivr source URL of the vendored UMD build.
 pub const MOTION_SOURCE: &str = "https://cdn.jsdelivr.net/npm/motion@12.43.0/dist/motion.js";
 
-/// `sha384` Subresource Integrity hash of `assets/motion.min.js`.
+/// `sha384` Subresource Integrity hash of the upstream file vendored as
+/// `assets/motion.min.js`.
+///
+/// This is a provenance pin, not something the `<script>` tag reads (the
+/// bundle computes its own hashes): it records exactly which upstream bytes
+/// were vendored, and a test fails if `assets/motion.min.js` drifts from it.
 pub const MOTION_JS_INTEGRITY: &str =
     "sha384-hgVFh5YKDMdpcWEjpRqk2kPXOKBH7I9NBCKe3uR6dHKgy/BWPe8kyL01kiYuRn1u";
-
-/// `sha384` Subresource Integrity hash of `assets/init.js`.
-///
-/// If `init.js` changes, update this constant (and `assets/manifest.json`);
-/// [`integrity_hashes_match_embedded_bytes`] fails otherwise.
-pub const INIT_JS_INTEGRITY: &str =
-    "sha384-dUWEfCOpBgSzbVwX8EAHPbpeWW0lscEnu4hCBuH1F3TM3xPSQXXZqyvPd25+UoC9";
-
-/// `sha384` Subresource Integrity hash of `assets/motion.css`.
-///
-/// If `motion.css` changes, update this constant (and
-/// `assets/manifest.json`); [`integrity_hashes_match_embedded_bytes`] fails
-/// otherwise.
-pub const MOTION_CSS_INTEGRITY: &str =
-    "sha384-yfZM6OaZCXTqD3cFPs2vvMxMH8ZWzeSiY04VwJ79Kj9GIj2IX8CBht7/Avi0OMNr";
-
-/// Raw bytes of a vendored asset, or `None` when the name is unknown.
-pub(crate) fn file(name: &str) -> Option<&'static [u8]> {
-    ASSETS.get_file(name).map(include_dir::File::contents)
-}
 
 #[cfg(test)]
 mod tests {
@@ -61,13 +87,67 @@ mod tests {
     }
 
     #[test]
-    fn integrity_hashes_match_embedded_bytes() {
-        let motion = file("motion.min.js").expect("motion.min.js is embedded");
-        assert_eq!(sri(motion), MOTION_JS_INTEGRITY);
-        let init = file("init.js").expect("init.js is embedded");
-        assert_eq!(sri(init), INIT_JS_INTEGRITY);
-        let css = file("motion.css").expect("motion.css is embedded");
-        assert_eq!(sri(css), MOTION_CSS_INTEGRITY);
+    fn bundle_holds_exactly_the_three_served_files() {
+        let files: Vec<&str> = MOTION_ASSETS
+            .iter()
+            .map(autumn_web::assets::PluginAsset::logical_path)
+            .collect();
+        // Sorted by logical path; `manifest.json` is deliberately absent.
+        assert_eq!(files, [INIT_JS, MOTION_CSS, MOTION_JS]);
+        assert_eq!(MOTION_ASSETS.namespace(), ASSETS_NAMESPACE);
+        assert_eq!(MOTION_ASSETS.mount_path(), "/static/_plugins/motion");
+    }
+
+    #[test]
+    fn bundle_integrity_matches_embedded_bytes() {
+        for asset in MOTION_ASSETS.iter() {
+            assert_eq!(
+                asset.integrity(),
+                sri(asset.bytes()),
+                "{} SRI is computed from its bytes",
+                asset.logical_path()
+            );
+        }
+    }
+
+    #[test]
+    fn vendored_motion_matches_the_pinned_upstream_hash() {
+        let motion = MOTION_ASSETS
+            .get(MOTION_JS)
+            .expect("motion.min.js is bundled");
+        assert_eq!(sri(motion.bytes()), MOTION_JS_INTEGRITY);
+        assert_eq!(motion.integrity(), MOTION_JS_INTEGRITY);
+    }
+
+    #[test]
+    fn urls_are_fingerprinted_under_the_plugin_mount() {
+        for asset in MOTION_ASSETS.iter() {
+            let path = asset.logical_path();
+            assert_eq!(asset.plain_url(), format!("/static/_plugins/motion/{path}"));
+            let (stem, ext) = path
+                .rsplit_once('.')
+                .expect("bundled files have extensions");
+            let url = asset.url();
+            let hash = url
+                .strip_prefix(&format!("/static/_plugins/motion/{stem}."))
+                .and_then(|rest| rest.strip_suffix(&format!(".{ext}")))
+                .unwrap_or_else(|| panic!("{url} is the fingerprinted form of {path}"));
+            assert_eq!(hash.len(), 8, "{url}");
+            assert!(hash.bytes().all(|b| b.is_ascii_hexdigit()), "{url}");
+        }
+    }
+
+    #[test]
+    fn content_types_match_the_files() {
+        let content_type = |path| {
+            MOTION_ASSETS
+                .get(path)
+                .expect("file is bundled")
+                .content_type()
+        };
+        assert_eq!(content_type(MOTION_JS), "text/javascript; charset=utf-8");
+        assert_eq!(content_type(INIT_JS), "text/javascript; charset=utf-8");
+        assert_eq!(content_type(MOTION_CSS), "text/css; charset=utf-8");
     }
 
     #[test]
@@ -84,14 +164,6 @@ mod tests {
         assert!(
             manifest.contains(MOTION_JS_INTEGRITY),
             "manifest records the motion.min.js integrity"
-        );
-        assert!(
-            manifest.contains(INIT_JS_INTEGRITY),
-            "manifest records the init.js integrity"
-        );
-        assert!(
-            manifest.contains(MOTION_CSS_INTEGRITY),
-            "manifest records the motion.css integrity"
         );
     }
 }

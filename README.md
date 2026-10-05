@@ -223,14 +223,43 @@ Details:
 - `assets/motion.min.js` — the upstream minified Motion UMD build
   (12.43.0, from jsDelivr), renamed from `dist/motion.js`. Sets
   `window.Motion`.
-- `assets/init.js` — the plugin-authored scanner (~6 KiB). Reads the
-  attributes above, calls `Motion.animate` / `inView` / `scroll` /
-  `stagger`.
-- `assets/manifest.json` — version pin, source URL, and `sha384`
-  integrity hashes for both files.
-- The plugin merges an axum router serving both at `/__motion/*` with
-  `text/javascript` content type and a day of public caching. The
-  `<script>` tags carry the SRI hashes.
+- `assets/init.js` — the plugin-authored scanner. Reads the attributes
+  above, calls `Motion.animate` / `inView` / `scroll` / `stagger` /
+  `hover` / `press`.
+- `assets/motion.css` — default styles for `Motion::scroll_progress()`.
+- `assets/manifest.json` — vendoring provenance: Motion version pin,
+  source URL, and the `sha384` of the upstream file. Not served.
+- The three served files form one `PluginAssets` bundle
+  (`MOTION_ASSETS`), which `MotionPlugin` installs with Autumn's
+  `AppBuilder::plugin_assets` seam (autumn-web 0.8+). The framework
+  serves each file under `/static/_plugins/motion/`:
+  - at a content-hashed URL (`init.<sha256-prefix>.js`) with
+    `Cache-Control: public, max-age=31536000, immutable`, and
+  - at its plain URL (`init.js`) with `must-revalidate`,
+  - both with `ETag` / `304` and `Range` support.
+- `motion_script()` / `motion_stylesheet()` emit the hashed URLs with
+  `integrity=` hashes the framework computes from the embedded bytes —
+  no hand-kept SRI constants. The routes show up in `autumn routes` as
+  public, plugin-attributed static files.
+- Need a URL yourself? `MOTION_ASSETS.url("init.js")`, or
+  `asset_url("_plugins/motion/init.js")` once the plugin is installed.
+
+## Upgrading from 0.1
+
+0.2 requires autumn-web 0.8 and moves the assets onto the framework's
+plugin-asset seam:
+
+- Asset URLs moved from `/__motion/*` to `/static/_plugins/motion/*`
+  (content-hashed). If you only use `motion_script()` /
+  `motion_stylesheet()`, nothing changes for you. Hand-written
+  `/__motion/...` references must switch to those helpers,
+  `MOTION_ASSETS.url(..)`, or `asset_url("_plugins/motion/..")`.
+- `motion_routes()` is gone — `MotionPlugin` installs `MOTION_ASSETS`.
+- `INIT_JS_INTEGRITY` and `MOTION_CSS_INTEGRITY` are gone — use
+  `MOTION_ASSETS.integrity("init.js")` / `("motion.css")`.
+  `MOTION_JS_INTEGRITY` stays as the upstream provenance pin.
+- The plugin no longer turns on autumn-web's `embed-assets` feature;
+  enable it in your app if you rely on it.
 
 ## Limits
 
@@ -249,6 +278,3 @@ Details:
   covered by content/string tests only (hook presence, preset table,
   reduced-motion guard). Motion's own test suite covers the animation
   engine; this plugin covers the wiring.
-- Plugin assets live under the `/__motion` namespace rather than the
-  app's `/static/*` fingerprinting — Autumn has no plugin asset-overlay
-  seam yet, so the plugin serves its own files.
