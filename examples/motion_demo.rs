@@ -44,12 +44,14 @@ static BATCH: AtomicU32 = AtomicU32::new(1);
 
 #[autumn_web::main]
 async fn main() {
-    autumn_web::app()
-        .plugin(MotionPlugin::new())
-        .embedded_static(&STATIC)
-        .routes(autumn_web::routes![index, more])
-        .run()
-        .await;
+    Box::pin(
+        autumn_web::app()
+            .plugin(MotionPlugin::new())
+            .embedded_static(&STATIC)
+            .routes(autumn_web::routes![index, more])
+            .run(),
+    )
+    .await;
 }
 
 /// The page shell: scripts, progress bar, and content.
