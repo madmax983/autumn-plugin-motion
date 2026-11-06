@@ -64,3 +64,8 @@ pub use assets::{
 pub use motion::{Ease, InViewAmount, Motion, Preset, RepeatType, StaggerFrom};
 pub use plugin::{MotionPlugin, PLUGIN_NAME};
 pub use script::{motion_script, motion_stylesheet};
+
+/// Compiles the Rust snippets of the README as doctests.
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+pub struct ReadmeDoctests;
