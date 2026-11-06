@@ -10,13 +10,23 @@ memory, and gives you a typed Rust builder plus a declarative
 
 Add the plugin:
 
-```rust
+```rust,no_run
 use autumn_plugin_motion::MotionPlugin;
+use autumn_web::prelude::*;
 
-autumn_web::app()
-    .plugin(MotionPlugin::new())
-    .run()
-    .await;
+#[get("/")]
+async fn index() -> &'static str {
+    "Hello"
+}
+
+#[autumn_web::main]
+async fn main() {
+    autumn_web::app()
+        .plugin(MotionPlugin::new())
+        .routes(routes![index])
+        .run()
+        .await;
+}
 ```
 
 Put the scripts in your layout (both are `defer`red and SRI-hashed):
@@ -40,6 +50,8 @@ Animate with the typed builder — it wraps your markup in an animated
 
 ```rust
 use autumn_plugin_motion::Motion;
+use autumn_web::{Markup, html};
+# fn layout(content: Markup) -> Markup { content }
 
 let page = layout(html! {
     (Motion::fade_up().delay(100).wrap(html! {
@@ -51,6 +63,8 @@ let page = layout(html! {
 Or write the attributes directly on your own elements:
 
 ```rust
+use autumn_web::html;
+
 let list = html! {
     ul data-motion="fade-up" data-motion-stagger="60" {
         li { "one" }
@@ -67,6 +81,13 @@ scoped to the swap target, so every htmx partial animates declaratively
 with zero extra JS:
 
 ```rust
+use autumn_plugin_motion::Motion;
+use autumn_web::prelude::*;
+
+fn rows() -> Markup {
+    html! { @for n in 1..=3 { div { "Row " (n) } } }
+}
+
 #[get("/feed")]
 async fn feed() -> Markup {
     html! {
@@ -88,35 +109,46 @@ async fn feed() -> Markup {
 Scroll-linked effects work the same way:
 
 ```rust
-(Motion::fade().scroll().wrap(html! {
+use autumn_plugin_motion::Motion;
+use autumn_web::html;
+
+Motion::fade().scroll().wrap(html! {
     div class="scrub-me" { }
-}))
+});
 ```
 
 Target another element's traversal, or remap the offsets:
 
 ```rust
+use autumn_plugin_motion::Motion;
+use autumn_web::html;
+
+let markup = html! { div id="hero" { "Hero" } };
 // Fade as #hero crosses the viewport; finish when the element's center
 // hits the viewport's center.
-(Motion::fade()
+Motion::fade()
     .scroll_target("#hero")
     .scroll_offset(["start end", "center center"])
-    .wrap(markup))
+    .wrap(markup);
 ```
 
 Parallax drift and the opinionated progress bar:
 
 ```rust
 use autumn_plugin_motion::{Motion, motion_stylesheet};
+use autumn_web::html;
 
-// In <head>, once per page:
-(motion_stylesheet())
+let art = html! { img src="/static/hero.png" alt=""; };
+html! {
+    // In <head>, once per page:
+    (motion_stylesheet())
 
-// Hero art that lags the scroll:
-(Motion::parallax(0.3).wrap(markup))
+    // Hero art that lags the scroll:
+    (Motion::parallax(0.3).wrap(art))
 
-// A fixed top bar that fills with page scroll — zero hand-written JS:
-(Motion::scroll_progress())
+    // A fixed top bar that fills with page scroll — zero hand-written JS:
+    (Motion::scroll_progress())
+};
 ```
 
 ## Demo
@@ -198,7 +230,9 @@ and `Ease::Spring { stiffness, damping, mass }`:
 
 ```rust
 use autumn_plugin_motion::{Ease, Motion};
+use autumn_web::html;
 
+let markup = html! { button { "Buy" } };
 let bouncy = Motion::scale()
     .ease(Ease::Spring { stiffness: 300.0, damping: 20.0, mass: 1.0 })
     .wrap(markup);
